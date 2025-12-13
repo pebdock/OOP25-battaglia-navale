@@ -1,6 +1,4 @@
 
-⚠️ **Il file `report.pdf` viene realizzato dagli studenti (non è fornito).**
-
 ---
 
 ## Istruzioni per progetto e relazione
