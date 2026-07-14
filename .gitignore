@@ -5,13 +5,15 @@
 build/
 bin/
 
-# Ignore Idea customizations
-.idea
+# IDE and compiler output directories
+out/
+bin/
 
-# Ignore Eclipse settings
-.project
-.settings/
-.classpath
-
-# Ignore VS Code settings
+# Ignore IDE-specific files
 .vscode/
+.idea/
+*.iml
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
