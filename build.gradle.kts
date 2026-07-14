@@ -15,6 +15,13 @@ plugins {
     id("org.danilopianini.gradle-java-qa") version "1.159.0"
 }
 
+// Compile and test the project using Java 21
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(21))
+    }
+}
+
 repositories { // Where to search for dependencies
     mavenCentral()
 }
@@ -22,10 +29,6 @@ repositories { // Where to search for dependencies
 dependencies {
     // Suppressions for SpotBugs
     compileOnly("com.github.spotbugs:spotbugs-annotations:4.9.8")
-
-    // Maven dependencies are composed by a group name, a name and a version, separated by colons
-    implementation("com.omertron:API-OMDB:1.5")
-    implementation("org.jooq:jool:0.9.15")
 
     /*
      * Simple Logging Facade for Java (SLF4J)
@@ -42,11 +45,15 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 }
+/*
+ * Da configurare quando verrà creata la GUI
+ * e verrà concordato il nome
+ *
+ * application {
+ * mainClass.set("it.unibo.sampleapp.RateAMovie")
+ * }
+ */ 
 
-application {
-    // Define the main class for the application.
-    mainClass.set("it.unibo.sampleapp.RateAMovie")
-}
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform() // Enables the engine of JUnit 5/6
