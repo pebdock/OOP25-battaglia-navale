@@ -1,0 +1,65 @@
+package it.unibo.battleship.model;
+
+import it.unibo.battleship.model.visibility.ShipVisibilityPolicy;
+
+import java.util.List;
+
+/**
+ * Contract for placements, shots, win detectionc and safe protections.
+ */
+public interface Board {
+
+    /**
+     * Returns the size of the board.
+     * 
+     * @return number of rows and columns
+     */
+    int size();
+
+    /**
+     * Places a ship on the board.
+     * 
+     * @param ship the ship to place on the board
+     */
+    void placeShip(Ship ship);
+
+    /**
+     * Shoot at the specified coordinates.
+     * 
+     * @param targets the specified coordinates
+     * @return the results in the same order as the targets
+     */
+    List<ShotResult> fireAt(List<Coordinate> targets);
+
+    /**
+     * Checks if the board contains at least one ship.
+     * 
+     * @return true if the board contains a ship
+     */
+    boolean hasShips();
+
+    /**
+     * Checks if the board contains the complete fleet.
+     * 
+     * @return true if the fleet is complete
+     */
+    boolean hasCompleteFleet();
+
+    /**
+     * Checks if every ship on the board is sunk.
+     * 
+     * @return true if all ships are sunk
+     */
+    boolean allShipsSunk();
+
+    /**
+     * Scans the 3x3 square around a coordinate.
+     * 
+     * @param center the center of the scanned area
+     * @param visibilityPolicy the policy used for sonar detection
+     * @return the number of detectable ship cells
+     */
+    int scan3x3(Coordinate center, ShipVisibilityPolicy visibilityPolicy);
+
+    // Aggiungere BoardSnapshot
+}
