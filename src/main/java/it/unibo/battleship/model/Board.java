@@ -61,5 +61,13 @@ public interface Board {
      */
     int scan3x3(Coordinate center, ShipVisibilityPolicy visibilityPolicy);
 
-    // Aggiungere BoardSnapshot
+    /**
+     * Creates a safe projection of the board for a viewer.
+     * 
+     * @param owner the owner of the board
+     * @param viewer the player viewing the board
+     * @param visibilityPolicy the policy used to filter the ships
+     * @return an immutable and filtered board snapshot
+     */
+    BoardSnapshot snapshot(PlayerId owner, PlayerId viewer, ShipVisibilityPolicy visibilityPolicy);
 }

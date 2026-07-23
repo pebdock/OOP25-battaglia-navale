@@ -48,7 +48,7 @@ dependencies {
 /*
  * Da configurare quando verrà creata la GUI
  * e verrà concordato il nome
- *
+ * [CONTROLLARE]
  * application {
  * mainClass.set("it.unibo.sampleapp.RateAMovie")
  * }
