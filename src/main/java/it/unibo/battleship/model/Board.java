@@ -24,7 +24,7 @@ public interface Board {
     void placeShip(Ship ship);
 
     /**
-     * Shoot at the specified coordinates.
+     * Shoot one or more specified coordinates.
      * 
      * @param targets the specified coordinates
      * @return the results in the same order as the targets
