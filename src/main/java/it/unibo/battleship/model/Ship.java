@@ -40,7 +40,7 @@ public final class Ship {
     }
 
     /**
-     * Bulds a valid shape from a top-left origin and a quarter-turn rotation.
+     * Static factory method that builds a ship with a valid shape from a top-left origin and a quarter-turn rotation.
      * 
      * @param id identifies thw single ship
      * @param type one of the types in ShipType
