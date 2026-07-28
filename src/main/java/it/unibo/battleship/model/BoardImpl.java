@@ -13,16 +13,16 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Collection based board implementation
+ * Collection based board implementation.
  */
-public class BoardImpl implements Board {
+public final class BoardImpl implements Board {
 
     public static final int REQUIRED_SIZE = 10;
 
     private final int size;
     private final Map<Coordinate, Ship> occupiedBy = new HashMap<>();
     private final List<Ship> fleet = new ArrayList<>();
-    private final Set<Coordinate> firedAt = new HashSet();
+    private final Set<Coordinate> firedAt = new HashSet<>();
 
     /**
      * Build a game board with defined size.
@@ -90,16 +90,16 @@ public class BoardImpl implements Board {
      */
     private void validateTarget(final Coordinate target) {
         Objects.requireNonNull(target, "target");
-        if(!target.isInside(this.size)) {
+        if (!target.isInside(this.size)) {
             throw violation(RuleViolation.OUTSIDE_BOARD, "Target outside board");
         }
-        if(this.firedAt.contains(target)) {
+        if (this.firedAt.contains(target)) {
             throw violation(RuleViolation.ALREADY_TARGETED, "Cell already targeted");
         }
     }
 
     /**
-     * Checks if something was hit by the shoot and tells what happened
+     * Checks if something was hit by the shoot and tells what happened.
      * 
      * @param target the chosen coordinate to shoot
      * @return if a boat was hit, sunk or not
@@ -111,7 +111,7 @@ public class BoardImpl implements Board {
             return new ShotResult(target, ShotOutcome.MISS);
         }
         ship.registerHit(target);
-        final ShotOutcome outcome = ship.isSunk() ? ShotOutcome.SUNK : ShotOutcome.MISS;
+        final ShotOutcome outcome = ship.isSunk() ? ShotOutcome.SUNK : ShotOutcome.HIT;
         return new ShotResult(target, outcome);
     }
 
@@ -133,16 +133,19 @@ public class BoardImpl implements Board {
     }
 
     @Override
-    public int scan3x3(final Coordinate center, final ShipVisibilityPolicy visibilityPolicy) {
+    public int scan3x3(
+        final Coordinate center,
+        final ShipVisibilityPolicy visibilityPolicy
+    ) {
         Objects.requireNonNull(center, "center");
         Objects.requireNonNull(visibilityPolicy, "visibilityPolicy");
         if (!center.isInside(this.size)) {
             throw violation(RuleViolation.OUTSIDE_BOARD, "Sonar center outside board");
         }
         int detectedCells = 0;
-        for (int row = Math.max(0, center.row() - 1);row <= Math.min(this.size - 1, center.row() + 1); row++) {
+        for (int row = Math.max(0, center.row() - 1); row <= Math.min(this.size - 1, center.row() + 1); row++) {
             for (int column = Math.max(0, center.column() - 1);
-                 row <= Math.min(this.size - 1, center.column() + 1); column++) {
+                 column <= Math.min(this.size - 1, center.column() + 1); column++) {
                 final Coordinate coordinate = new Coordinate(row, column);
                 final Ship ship = this.occupiedBy.get(coordinate);
                 if (ship != null && !ship.isSunk() && !ship.isHitAt(coordinate) && visibilityPolicy.isDetectableBySonar(ship)) {
@@ -154,7 +157,10 @@ public class BoardImpl implements Board {
     }
 
     @Override
-    public BoardSnapshot snapshot(final PlayerId owner, final PlayerId viewer, final ShipVisibilityPolicy visibilityPolicy) {
+    public BoardSnapshot snapshot(final PlayerId owner,
+        final PlayerId viewer,
+        final ShipVisibilityPolicy visibilityPolicy
+    ) {
         Objects.requireNonNull(owner, "owner");
         Objects.requireNonNull(viewer, "viewer");
         Objects.requireNonNull(visibilityPolicy, "visibilityPolicy");
@@ -170,7 +176,45 @@ public class BoardImpl implements Board {
         return new BoardSnapshot(this.size, cells);
     }
 
-    private CellState project(){...}; //finire
-    private static GameRuleException violation(){...}; //finire
+    /**
+     * Determines the visible state of one coordinate for the given viewer. 
+     * 
+     * @param coordinate to project
+     * @param ship the ship that occupies the coordinate or null
+     * @param context the owner and viewer of the board
+     * @param visibilityPolicy the policy to determine ship visibility
+     * @return the observable state of the coordinate
+     */
+    private CellState project(
+        final Coordinate coordinate,
+        final Ship ship,
+        final VisibilityContext context,
+        final ShipVisibilityPolicy visibilityPolicy
+    ) {
+        if (this.firedAt.contains(coordinate)) {
+            if (ship == null) {
+                return CellState.MISS;
+            }
+            return ship.isSunk() ? CellState.SUNK : CellState.HIT;
+        }
+        if (ship != null) {
+            return visibilityPolicy.isVisible(ship, context)
+            ? CellState.SHIP
+            : CellState.UNKNOWN;
+        }
+        return context.owner() == context.viewer() 
+        ? CellState.SEA
+        : CellState.UNKNOWN;
+    }
 
+    /**
+     * Creates an exception describin a game rule violation.
+     * 
+     * @param reason the rule that was violated
+     * @param message diagnostuc message
+     * @return the exception describing the violation
+     */
+    private static GameRuleException violation(final RuleViolation reason, final String message) {
+        return new GameRuleException(reason, message);
+    }
 }
