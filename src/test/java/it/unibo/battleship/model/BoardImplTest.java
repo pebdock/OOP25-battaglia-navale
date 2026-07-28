@@ -1,8 +1,11 @@
 package it.unibo.battleship.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
+
+import it.unibo.battleship.model.visibility.OwnerOnlyVisibilityPolicy;
 
 // import static org.junit.jupiter.api.Assertions.assertEquals;
 // import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -56,5 +59,32 @@ class BoardImplTest {
             new Coordinate(lValue, lValue),
             new Coordinate(lValue, 4)
         ), ship.cells());
+    }
+
+    /**
+     * Check that when one of a group of shots is invalid, all the shots are invalid.
+     */
+    @Test
+    void checkValidShots() {
+        final Board board = new BoardImpl(10);
+        board.placeShip(Ship.place(
+            new ShipId("sub"),
+            ShipType.INVISIBLE_SUBMARINE,
+            new Coordinate(3, 3),
+            Rotation.DEGREES_0
+        ));
+        board.fireAt(List.of(new Coordinate(0, 0)));
+
+        final GameRuleException exception = assertThrows(
+            GameRuleException.class,
+            () -> board.fireAt(List.of(new Coordinate(3, 3), new Coordinate(0, 0)))
+        );
+        assertEquals(RuleViolation.ALREADY_TARGETED, exception.violation());
+        final BoardSnapshot snapshot = board.snapshot(
+            PlayerId.PLAYER1,
+            PlayerId.PLAYER1,
+            new OwnerOnlyVisibilityPolicy()
+        );
+        assertEquals(CellState.SHIP, snapshot.stateAt(new Coordinate(3, 3)));
     }
 }
