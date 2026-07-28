@@ -1,10 +1,12 @@
 package it.unibo.battleship.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
 
+import it.unibo.battleship.model.visibility.InvisibleSubmarinePolicy;
 import it.unibo.battleship.model.visibility.OwnerOnlyVisibilityPolicy;
 
 // import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -86,5 +88,36 @@ class BoardImplTest {
             new OwnerOnlyVisibilityPolicy()
         );
         assertEquals(CellState.SHIP, snapshot.stateAt(new Coordinate(3, 3)));
+    }
+
+    /**
+     * Checks that the submarine is ignored by the sonar.
+     */
+    @Test
+    void sonarIgnoreSub() {
+
+        final Board board = new BoardImpl(10);
+
+        board.placeShip(Ship.place(
+            new ShipId("Sub"),
+            ShipType.INVISIBLE_SUBMARINE,
+            new Coordinate(1, 1),
+            Rotation.DEGREES_0
+        ));
+
+        board.placeShip(Ship.place(
+            new ShipId("cru"),
+            ShipType.CRUISER,
+            new Coordinate(2, 1),
+            Rotation.DEGREES_0
+        ));
+
+        final int detected = board.scan3x3(
+            new Coordinate(2, 2),
+            new InvisibleSubmarinePolicy(new OwnerOnlyVisibilityPolicy())
+        );
+
+        assertEquals(3, detected);
+        assertFalse(board.hasCompleteFleet());
     }
 }
