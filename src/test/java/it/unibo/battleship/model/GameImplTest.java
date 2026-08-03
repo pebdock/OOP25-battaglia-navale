@@ -3,7 +3,7 @@ package it.unibo.battleship.model;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 // import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-// import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import it.unibo.battleship.model.shot.DoubleShotStrategy;
 import it.unibo.battleship.model.shot.NormalShotStrategy;
@@ -47,6 +47,37 @@ class GameImplTest {
             () -> game.playTurn(ShotKind.NORMAL, List.of(new Coordinate(10, 10)))
         );
         assertEquals(PlayerId.PLAYER2, game.currentPlayer());
+    }
+
+    /**
+     * Tests that a three valid shots unclock double shot and
+     * double shot hits don't charge it.
+     */
+    @Test
+    void checkDoubleShots() {
+        final Complete complete = newGame();
+        final Game game = complete.game();
+        game.start();
+
+        final GameRuleException tooEarly = assertThrows(
+            GameRuleException.class,
+            () -> game.playTurn(ShotKind.DOUBLE, List.of(
+            new Coordinate(0, 0), new Coordinate(0, 1)))
+        );
+        assertEquals(RuleViolation.DOUBLE_SHOT_NOT_READY, tooEarly.violation());
+
+        game.playTurn(ShotKind.NORMAL, List.of(new Coordinate(0, 0)));
+        game.playTurn(ShotKind.NORMAL, List.of(new Coordinate(0, 1)));
+        game.playTurn(ShotKind.NORMAL, List.of(new Coordinate(0, 2)));
+        assertTrue(game.snapshotFor(PlayerId.PLAYER1).doubleShot().ready());
+
+        final TurnResult result = game.playTurn(ShotKind.DOUBLE, List.of(
+            new Coordinate(0, 3), new Coordinate(0, 4))
+        );
+
+        assertEquals(2, result.shots().size());
+        assertEquals(PlayerId.PLAYER1, game.currentPlayer());
+        assertEquals(0, game.snapshotFor(PlayerId.PLAYER1).doubleShot().progress());
     }
 
     /**
