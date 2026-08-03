@@ -1,6 +1,7 @@
 package it.unibo.battleship.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 // import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -78,6 +79,22 @@ class GameImplTest {
         assertEquals(2, result.shots().size());
         assertEquals(PlayerId.PLAYER1, game.currentPlayer());
         assertEquals(0, game.snapshotFor(PlayerId.PLAYER1).doubleShot().progress());
+    }
+
+    /**
+     * Test that the sonar passes the turn and can't be used after using it one time.
+     */
+    @Test
+    void checkSonar() {
+        final Complete complete = newGame();
+        final Game game = complete.game();
+        game.start();
+
+        final SonarResult result = game.useSonar(new Coordinate(2, 2));
+
+        assertEquals(PlayerId.PLAYER2, result.nextPlayer());
+        assertEquals(PlayerId.PLAYER2, game.currentPlayer());
+        assertFalse(game.snapshotFor(PlayerId.PLAYER1).sonarAvailable());
     }
 
     /**
