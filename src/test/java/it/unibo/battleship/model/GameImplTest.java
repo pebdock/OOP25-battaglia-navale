@@ -98,6 +98,25 @@ class GameImplTest {
     }
 
     /**
+     * Checks that sinking the enemy last ship end the game.
+     */
+    @Test
+    void lastSinkEndGame() {
+        final Complete complete = newGame();
+        final Game game = complete.game();
+        game.start();
+
+        TurnResult result = null;
+        for (final Coordinate target : complete.playerTwoCells()) {
+            result = game.playTurn(ShotKind.NORMAL, List.of(target));
+        }
+
+        assertEquals(GamePhase.FINISHED, result.phase());
+        assertEquals(PlayerId.PLAYER1, result.winner().orElseThrow());
+        assertEquals(PlayerId.PLAYER1, game.currentPlayer());
+    }
+
+    /**
      * Creates a game with 2 complete fleets.
      * 
      * @return the union containing the game and the second player's ship cells
