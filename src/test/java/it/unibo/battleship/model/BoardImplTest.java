@@ -49,7 +49,7 @@ class BoardImplTest {
     void reconLShapeRotation() {
         final Ship ship = Ship.place(
             new ShipId("recon"),
-            ShipType.RECONNAISSANCE,
+            ShipType.RECON,
             new Coordinate(4, 4),
             Rotation.DEGREES_90
         );

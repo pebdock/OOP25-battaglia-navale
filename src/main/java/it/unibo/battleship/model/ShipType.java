@@ -9,7 +9,7 @@ public enum ShipType {
     CRUISER(3, 2, ShipShape.LINEAR), // incrociatore
     INVISIBLE_SUBMARINE(3, 1, ShipShape.LINEAR), // sottomarino invisibile
     DESTROYER(2, 2, ShipShape.LINEAR), // cacciatorpediniere
-    RECONNAISSANCE(3, 1, ShipShape.L_SHAPED);
+    RECON(3, 1, ShipShape.L_SHAPED);
 
     private final int length;
     private final int requiredQuantity;

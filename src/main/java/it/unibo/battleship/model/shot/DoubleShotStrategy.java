@@ -7,7 +7,7 @@ public final class DoubleShotStrategy implements ShotStrategy {
 
     @Override
     public int requiredTargets() {
-        return 1;
+        return 2;
     }
 
 }

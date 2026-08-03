@@ -7,7 +7,7 @@ public final class NormalShotStrategy implements ShotStrategy {
 
     @Override
     public int requiredTargets() {
-        return 2;
+        return 1;
     }
 
 }
