@@ -3,7 +3,7 @@ package it.unibo.battleship.model;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 // import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+// import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import it.unibo.battleship.model.shot.DoubleShotStrategy;
 import it.unibo.battleship.model.shot.NormalShotStrategy;
@@ -22,9 +22,9 @@ import java.util.Map;
 class GameImplTest {
 
     private static final int LAST_INDEX = 9;
-     private static final int D1_INDEX = 5;
-      private static final int D2_INDEX = 6;
-       private static final int R_INDEX = 7;
+    private static final int D1_INDEX = 5;
+    private static final int D2_INDEX = 6;
+    private static final int R_INDEX = 7;
 
     /**
      * Tests that a hit keeps the turn, a miss passes the turn and an
