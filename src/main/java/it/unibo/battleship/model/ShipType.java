@@ -9,11 +9,13 @@ public enum ShipType {
     CRUISER(3, 2, ShipShape.LINEAR), // incrociatore
     INVISIBLE_SUBMARINE(3, 1, ShipShape.LINEAR), // sottomarino invisibile
     DESTROYER(2, 2, ShipShape.LINEAR), // cacciatorpediniere
-    RECON(3, 1, ShipShape.L_SHAPED);
+    RECON(3, 1, ShipShape.L_SHAPED),
+    ARMORED_SHIP(3, 1, ShipShape.LINEAR, false);
 
     private final int length;
     private final int requiredQuantity;
     private final ShipShape shape;
+    private final boolean requiredForClassicFleet;
 
     /**
      * Constructor for the different possible kinds of ships.
@@ -23,9 +25,19 @@ public enum ShipType {
      * @param shape the shape of that type of ships
      */
     ShipType(final int length, final int requiredQuantity, final ShipShape shape) {
+        this(length, requiredQuantity, shape, true);
+    }
+
+    ShipType(
+        final int length,
+        final int requiredQuantity,
+        final ShipShape shape,
+        final boolean requiredForClassicFleet
+    ) {
         this.length = length;
         this.requiredQuantity = requiredQuantity;
         this.shape = shape;
+        this.requiredForClassicFleet = requiredForClassicFleet;
     }
 
     /**
@@ -53,5 +65,16 @@ public enum ShipType {
      */
     public ShipShape shape() {
         return this.shape;
+    }
+
+    
+    /**
+     * Keeps the original complete-fleet contract backwards compatible. The GUI
+     * adds the optional special ship to every new fleet.
+     *
+     * @return true when the type belongs to the original mandatory fleet
+     */
+    public boolean requiredForClassicFleet() {
+        return this.requiredForClassicFleet;
     }
 }

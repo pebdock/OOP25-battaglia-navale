@@ -6,5 +6,6 @@ package it.unibo.battleship.model;
 public enum ShotOutcome {
     HIT,
     MISS,
-    SUNK
+    SUNK,
+    ARMOR_ABSORBED
 }

@@ -3,6 +3,8 @@ package it.unibo.battleship.model;
 import it.unibo.battleship.model.visibility.ShipVisibilityPolicy;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.random.RandomGenerator;
 
 /**
  * Contract for placements, shots, win detectionc and safe protections.
@@ -70,4 +72,13 @@ public interface Board {
      * @return an immutable and filtered board snapshot
      */
     BoardSnapshot snapshot(PlayerId owner, PlayerId viewer, ShipVisibilityPolicy visibilityPolicy);
+
+    /**
+     * Moves one randomly selected non-sunken ship to a valid free position.
+     * Existing damage travels with the ship.
+     *
+     * @param random source of randomness
+     * @return details of the move, or empty when no ship can be moved
+     */
+    Optional<ShipMove> moveRandomUnsunkShip(RandomGenerator random);
 }

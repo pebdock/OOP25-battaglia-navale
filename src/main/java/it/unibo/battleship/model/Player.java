@@ -10,6 +10,7 @@ public final class Player {
     private final Board board;
     private final DoubleShotAbility doubleShot = new DoubleShotAbility();
     private boolean sonarAvailable = true;
+    private boolean sequentialShotAvailable = true;
 
     /**
      * Pairs a player and his board together.
@@ -65,7 +66,11 @@ public final class Player {
      * @return true if the player can use it
      */
     boolean canUse(final ShotKind kind) {
-        return kind == ShotKind.NORMAL || this.doubleShot.isReady();
+        return switch (kind) {
+            case NORMAL -> true;
+            case DOUBLE -> this.doubleShot.isReady();
+            case SEQUENTIAL -> this.sequentialShotAvailable;
+        };
     }
 
     /**
@@ -80,6 +85,25 @@ public final class Player {
      */
     void consumeDoubleShot() {
         this.doubleShot.consume();
+    }
+
+    /**
+     * Tells whether the one-use sequential shot is still available.
+     *
+     * @return true when the ability can be used
+     */
+    public boolean sequentialShotAvailable() {
+        return this.sequentialShotAvailable;
+    }
+
+    void consumeSequentialShot() {
+        if (!this.sequentialShotAvailable) {
+            throw new GameRuleException(
+                RuleViolation.SEQUENTIAL_SHOT_NOT_AVAILABLE,
+                "Sequential shot already used"
+            );
+        }
+        this.sequentialShotAvailable = false;
     }
 
     /**

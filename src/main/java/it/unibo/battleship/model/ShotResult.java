@@ -24,6 +24,7 @@ public record ShotResult(Coordinate target, ShotOutcome outcome) {
      * @return true if the outcome of the istance is different than MISS (it hits or sunk a boat)
      */
     public boolean isHit() {
-        return this.outcome != ShotOutcome.MISS;
+        return this.outcome != ShotOutcome.MISS
+            && this.outcome != ShotOutcome.ARMOR_ABSORBED;
     }
 }

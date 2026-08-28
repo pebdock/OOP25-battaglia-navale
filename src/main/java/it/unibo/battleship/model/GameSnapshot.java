@@ -14,6 +14,7 @@ import java.util.Optional;
  * @param opponentBoard the opponent's visible board
  * @param doubleShot the status of the double shot of the viewer
  * @param sonarAvailable checks if the viewer can still use the sonar
+ * @param sequentialShotAvailable checks if the viewer can still use the sequential shot
  */
 public record GameSnapshot(
     GamePhase phase,
@@ -23,7 +24,8 @@ public record GameSnapshot(
     BoardSnapshot ownBoard,
     BoardSnapshot opponentBoard,
     DoubleShotStatus doubleShot,
-    boolean sonarAvailable
+    boolean sonarAvailable,
+    boolean sequentialShotAvailables
 ) {
 
     /**

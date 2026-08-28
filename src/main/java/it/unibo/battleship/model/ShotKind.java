@@ -5,5 +5,6 @@ package it.unibo.battleship.model;
  */
 public enum ShotKind {
     NORMAL,
-    DOUBLE
+    DOUBLE,
+    SEQUENTIAL
 }

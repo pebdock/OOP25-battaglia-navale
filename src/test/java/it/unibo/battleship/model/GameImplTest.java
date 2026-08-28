@@ -2,7 +2,7 @@ package it.unibo.battleship.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-// import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -111,6 +111,7 @@ class GameImplTest {
             result = game.playTurn(ShotKind.NORMAL, List.of(target));
         }
 
+        assertNotNull(result);
         assertEquals(GamePhase.FINISHED, result.phase());
         assertEquals(PlayerId.PLAYER1, result.winner().orElseThrow());
         assertEquals(PlayerId.PLAYER1, game.currentPlayer());

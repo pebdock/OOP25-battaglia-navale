@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.Optional;
+import java.util.random.RandomGenerator;
 
 /**
  * Collection based board implementation.
@@ -105,12 +107,17 @@ public final class BoardImpl implements Board {
      * @return if a boat was hit, sunk or not
      */
     private ShotResult resolveValidatedShot(final Coordinate target) {
-        this.firedAt.add(target);
         final Ship ship = this.occupiedBy.get(target);
         if (ship == null) {
+            this.firedAt.add(target);
             return new ShotResult(target, ShotOutcome.MISS);
         }
-        ship.registerHit(target);
+        final HitEffect effect = ship.registerHit(target);
+        if (effect == HitEffect.ABSORBED) {
+            this.firedAt.add(target);
+            return new ShotResult(target, ShotOutcome.ARMOR_ABSORBED);
+        }
+        this.firedAt.add(target);
         final ShotOutcome outcome = ship.isSunk() ? ShotOutcome.SUNK : ShotOutcome.HIT;
         return new ShotResult(target, outcome);
     }
@@ -122,7 +129,9 @@ public final class BoardImpl implements Board {
 
     @Override
     public boolean hasCompleteFleet() {
-        return Arrays.stream(ShipType.values()).allMatch(type ->
+        return Arrays.stream(ShipType.values())
+            .filter(ShipType::requiredForClassicFleet)
+            .allMatch(type ->
             this.fleet.stream().filter(ship -> ship.type() == type).count() == type.requiredQuantity()
         );
     }
@@ -166,14 +175,73 @@ public final class BoardImpl implements Board {
         Objects.requireNonNull(visibilityPolicy, "visibilityPolicy");
         final VisibilityContext context = new VisibilityContext(owner, viewer);
         final Map<Coordinate, CellState> cells = new HashMap<>();
+        final Map<Coordinate, ShipType> visibleShipTypes = new HashMap<>();
         for (int row = 0; row < this.size; row++) {
             for (int column = 0; column < this.size; column++) {
                 final Coordinate coordinate = new Coordinate(row, column);
                 final Ship ship = this.occupiedBy.get(coordinate);
-                cells.put(coordinate, this.project(coordinate, ship, context, visibilityPolicy));
+                final CellState state = this.project(coordinate, ship, context, visibilityPolicy);
+                cells.put(coordinate, state);
+                if (state == CellState.SHIP && ship != null) {
+                    visibleShipTypes.put(coordinate, ship.type());
+                }
             }
         }
-        return new BoardSnapshot(this.size, cells);
+        return new BoardSnapshot(this.size, cells, visibleShipTypes);
+    }
+
+    @Override
+    public Optional<ShipMove> moveRandomUnsunkShip(final RandomGenerator random) {
+        Objects.requireNonNull(random, "random");
+        final List<Ship> movable = this.fleet.stream()
+            .filter(ship -> !ship.isSunk())
+            .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        while (!movable.isEmpty()) {
+            final Ship ship = movable.remove(random.nextInt(movable.size()));
+            final List<Placement> placements = this.validPlacements(ship);
+            if (!placements.isEmpty()) {
+                final Placement placement = placements.get(random.nextInt(placements.size()));
+                return Optional.of(this.applyMove(ship, placement));
+            }
+        }
+        return Optional.empty();
+    }
+
+    private List<Placement> validPlacements(final Ship ship) {
+        final List<Placement> placements = new ArrayList<>();
+        for (final Rotation rotation : Rotation.values()) {
+            for (int row = 0; row < this.size; row++) {
+                for (int column = 0; column < this.size; column++) {
+                    final Coordinate origin = new Coordinate(row, column);
+                    final Ship candidate = Ship.place(ship.id(), ship.type(), origin, rotation);
+                    if (candidate.cells().equals(ship.cells()) || candidate.cells().stream()
+                        .anyMatch(cell -> !cell.isInside(this.size)
+                            || this.firedAt.contains(cell)
+                            || this.isOccupiedByAnotherShip(cell, ship))) {
+                        continue;
+                    }
+                    placements.add(new Placement(origin, rotation));
+                }
+            }
+        }
+        return placements;
+    }
+
+    private boolean isOccupiedByAnotherShip(final Coordinate coordinate, final Ship movingShip) {
+        final Ship occupant = this.occupiedBy.get(coordinate);
+        return occupant != null && !occupant.id().equals(movingShip.id());
+    }
+
+    private ShipMove applyMove(final Ship ship, final Placement placement) {
+        final Set<Coordinate> previousCells = ship.cells();
+        final Ship moved = ship.relocate(placement.origin(), placement.rotation());
+
+        previousCells.forEach(this.occupiedBy::remove);
+        moved.cells().forEach(coordinate -> this.occupiedBy.put(coordinate, moved));
+        this.firedAt.addAll(moved.hitCells());
+        this.fleet.set(this.fleet.indexOf(ship), moved);
+
+        return new ShipMove(ship.id(), ship.type(), previousCells, moved.cells(), moved.damageCount());
     }
 
     /**
@@ -217,4 +285,6 @@ public final class BoardImpl implements Board {
     private static GameRuleException violation(final RuleViolation reason, final String message) {
         return new GameRuleException(reason, message);
     }
+
+    private record Placement(Coordinate origin, Rotation rotation) { }
 }

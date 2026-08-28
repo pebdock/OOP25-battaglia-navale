@@ -58,4 +58,11 @@ public interface Game {
      * @return an optional containing the winner oe empty
      */
     Optional<PlayerId> winner();
+
+    /**
+     * Triggers one random event that moves a non-sunken ship.
+     *
+     * @return event details, or empty when no valid movement is available
+     */
+    Optional<RandomEventResult> triggerRandomEvent();
 }

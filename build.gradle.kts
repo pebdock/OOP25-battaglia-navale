@@ -30,15 +30,6 @@ dependencies {
     // Suppressions for SpotBugs
     compileOnly("com.github.spotbugs:spotbugs-annotations:4.9.8")
 
-    /*
-     * Simple Logging Facade for Java (SLF4J)
-     * See: http://www.slf4j.org/
-     */
-    val slf4jVersion = "2.0.17"
-    implementation("org.slf4j:slf4j-api:$slf4jVersion")
-    // Logback backend for SLF4J
-    runtimeOnly("ch.qos.logback:logback-classic:1.5.21")
-
     // JUnit API and testing engine
     testImplementation(platform("org.junit:junit-bom:6.0.1"))
     testImplementation("org.junit.jupiter:junit-jupiter-api")

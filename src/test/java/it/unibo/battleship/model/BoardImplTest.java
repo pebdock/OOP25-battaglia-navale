@@ -2,19 +2,13 @@ package it.unibo.battleship.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
 
 import it.unibo.battleship.model.visibility.InvisibleSubmarinePolicy;
 import it.unibo.battleship.model.visibility.OwnerOnlyVisibilityPolicy;
-
-// import static org.junit.jupiter.api.Assertions.assertEquals;
-// import static org.junit.jupiter.api.Assertions.assertEquals;
-// import static org.junit.jupiter.api.Assertions.assertEquals;
-
-// import it.unibo.battleship.model.visibility.InvisibleSubmarinePolicy;
-// import it.unibo.battleship.model.visibility.OwnerOnlyVisibilityPolicy;
 
 import java.util.List;
 import java.util.Set;
@@ -90,6 +84,36 @@ class BoardImplTest {
         assertEquals(CellState.SHIP, snapshot.stateAt(new Coordinate(3, 3)));
     }
 
+    /**
+     * Checks that a ship type is available only in the owner snapshot.
+     */
+    @Test
+    void ownerSnapshotShowsShipTypeButOpponentSnapshotDoesNot() {
+        final Board board = new BoardImpl(10);
+        final Coordinate coordinate = new Coordinate(2, 2);
+        board.placeShip(Ship.place(
+            new ShipId("flagship"),
+            ShipType.FLAGSHIP,
+            coordinate,
+            Rotation.DEGREES_0
+        ));
+
+        final BoardSnapshot ownerSnapshot = board.snapshot(
+            PlayerId.PLAYER1,
+            PlayerId.PLAYER1,
+            new OwnerOnlyVisibilityPolicy()
+        );
+        final BoardSnapshot opponentSnapshot = board.snapshot(
+            PlayerId.PLAYER1,
+            PlayerId.PLAYER2,
+            new OwnerOnlyVisibilityPolicy()
+        );
+
+        assertEquals(ShipType.FLAGSHIP, ownerSnapshot.shipTypeAt(coordinate).orElseThrow());
+        assertTrue(opponentSnapshot.shipTypeAt(coordinate).isEmpty());
+        assertEquals(CellState.UNKNOWN, opponentSnapshot.stateAt(coordinate));
+    }
+    
     /**
      * Checks that the submarine is ignored by the sonar.
      */
