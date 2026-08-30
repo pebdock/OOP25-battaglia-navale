@@ -25,7 +25,7 @@ public record GameSnapshot(
     BoardSnapshot opponentBoard,
     DoubleShotStatus doubleShot,
     boolean sonarAvailable,
-    boolean sequentialShotAvailables
+    boolean sequentialShotAvailable
 ) {
 
     /**
