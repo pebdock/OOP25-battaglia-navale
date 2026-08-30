@@ -17,7 +17,7 @@ public final class Ship {
     order is not important and with contains() the search is simple */
     private final Set<Coordinate> hits = new HashSet<>(); /* it changes during the match and registers 
     the hits on the ship's coordinates */
-    private boolean armorAvailable;
+    private final Set<Coordinate> armorHit = new HashSet<>(); /* tracks hits on the ship's armor */
 
     /**
      * Constructor that verifies that the occupied cells are the same number as the length of the ship.
@@ -38,7 +38,6 @@ public final class Ship {
             throw new IllegalArgumentException("Cells don't match the type of ship");
         }
         this.cells = copy;
-        this.armorAvailable = type == ShipType.ARMORED_SHIP;
     }
 
     /**
@@ -165,10 +164,12 @@ public final class Ship {
         if (!this.occupies(coordinate)) {
             throw new IllegalArgumentException("The ship doesn't occupy " + coordinate);
         }
-        if (this.armorAvailable) {
-            this.armorAvailable = false;
+
+        if (this.type == ShipType.ARMORED_SHIP && !this.armorHit.contains(coordinate)) {
+            this.armorHit.add(coordinate);
             return HitEffect.ABSORBED;
         }
+
         this.hits.add(coordinate);
         return HitEffect.DAMAGED;
     }
@@ -183,12 +184,13 @@ public final class Ship {
     }
 
     /**
-     * Tells whether the one-use armour is still active.
+     * Tells whether there are still ship cells whose armour has not been hit.
      *
-     * @return true when the next hit will be absorbed
+     * @return true if at least one cell of an armored ship has not yet absorbed a hit
      */
     public boolean armorAvailable() {
-        return this.armorAvailable;
+        return this.type == ShipType.ARMORED_SHIP
+            && this.armorHit.size() < this.cells.size();
     }
 
     Set<Coordinate> hitCells() {
@@ -197,7 +199,16 @@ public final class Ship {
 
     Ship relocate(final Coordinate origin, final Rotation rotation) {
         final Ship moved = place(this.id, this.type, origin, rotation);
-        moved.armorAvailable = this.armorAvailable;
+
+        final List<Coordinate> oldArmorHit = this.armorHit.stream()
+            .sorted((first, second) -> {
+                final int rowComparison = Integer.compare(first.row(), second.row());
+                return rowComparison != 0
+                    ? rowComparison
+                    : Integer.compare(first.column(), second.column());
+            })
+            .toList();
+
         final List<Coordinate> destinations = moved.cells.stream()
             .sorted((first, second) -> {
                 final int rowComparison = Integer.compare(first.row(), second.row());
@@ -206,9 +217,15 @@ public final class Ship {
                     : Integer.compare(first.column(), second.column());
             })
             .toList();
+
+        for (int index = 0; index < oldArmorHit.size(); index++) {
+            moved.armorHit.add(destinations.get(index));
+        }
+
         for (int index = 0; index < this.hits.size(); index++) {
             moved.hits.add(destinations.get(index));
         }
+
         return moved;
     }
 

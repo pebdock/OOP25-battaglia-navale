@@ -92,11 +92,17 @@ public final class BoardImpl implements Board {
      */
     private void validateTarget(final Coordinate target) {
         Objects.requireNonNull(target, "target");
+
         if (!target.isInside(this.size)) {
             throw violation(RuleViolation.OUTSIDE_BOARD, "Target outside board");
         }
+
         if (this.firedAt.contains(target)) {
-            throw violation(RuleViolation.ALREADY_TARGETED, "Cell already targeted");
+            final Ship ship = this.occupiedBy.get(target);
+
+            if (ship == null || ship.isHitAt(target)) {
+                throw violation(RuleViolation.ALREADY_TARGETED, "Cell already targeted");
+            }
         }
     }
 
@@ -260,19 +266,21 @@ public final class BoardImpl implements Board {
         final ShipVisibilityPolicy visibilityPolicy
     ) {
         if (this.firedAt.contains(coordinate)) {
-            if (ship == null) {
+            if (ship == null || !ship.isHitAt(coordinate)) {
                 return CellState.MISS;
             }
             return ship.isSunk() ? CellState.SUNK : CellState.HIT;
         }
+
         if (ship != null) {
             return visibilityPolicy.isVisible(ship, context)
-            ? CellState.SHIP
-            : CellState.UNKNOWN;
+                ? CellState.SHIP
+                : CellState.UNKNOWN;
         }
-        return context.owner() == context.viewer() 
-        ? CellState.SEA
-        : CellState.UNKNOWN;
+
+        return context.owner() == context.viewer()
+            ? CellState.SEA
+            : CellState.UNKNOWN;
     }
 
     /**
