@@ -67,7 +67,6 @@ public enum ShipType {
         return this.shape;
     }
 
-    
     /**
      * Keeps the original complete-fleet contract backwards compatible. The GUI
      * adds the optional special ship to every new fleet.

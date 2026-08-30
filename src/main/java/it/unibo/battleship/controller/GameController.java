@@ -26,11 +26,6 @@ public interface GameController {
     void startPlacement(String firstHarbor, String secondHarbor);
 
     /**
-     * Starts a deterministic match used by the packaged-JAR smoke test.
-     */
-    void startSmokeGame();
-
-    /**
      * Places the selected ship on the current placement board.
      *
      * @param origin first cell of the ship

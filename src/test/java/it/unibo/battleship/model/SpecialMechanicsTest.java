@@ -34,28 +34,55 @@ class SpecialMechanicsTest {
     @Test
     void armoredShipAbsorbsOnlyTheFirstHit() {
         final Board board = new BoardImpl(BoardImpl.REQUIRED_SIZE);
+        final Coordinate firstSection = new Coordinate(1, 1);
         final Ship ship = Ship.place(
             new ShipId("armoured"),
             ShipType.ARMORED_SHIP,
-            new Coordinate(1, 1),
+            firstSection,
             Rotation.DEGREES_0
         );
         board.placeShip(ship);
 
-        assertEquals(
-            ShotOutcome.ARMOR_ABSORBED,
-            board.fireAt(List.of(new Coordinate(1, 1))).getFirst().outcome()
-        );
+        final ShotResult absorbed = board.fireAt(List.of(firstSection)).getFirst();
+
+        assertEquals(ShotOutcome.ARMOR_ABSORBED, absorbed.outcome());
+        assertFalse(absorbed.isHit());
         assertFalse(ship.armorAvailable());
+        assertEquals(0, ship.damageCount());
+
+        final OwnerOnlyVisibilityPolicy visibility =
+            new OwnerOnlyVisibilityPolicy();
+
+        final BoardSnapshot ownerSnapshot = board.snapshot(
+            PlayerId.PLAYER1,
+            PlayerId.PLAYER1,
+            visibility
+        );
+
+        final BoardSnapshot opponentSnapshot = board.snapshot(
+            PlayerId.PLAYER1,
+            PlayerId.PLAYER2,
+            visibility
+        );
+
+        assertEquals(CellState.SHIP, ownerSnapshot.stateAt(firstSection));
+        assertEquals(CellState.UNKNOWN, opponentSnapshot.stateAt(firstSection));
+
+        final ShotResult damaged =
+            board.fireAt(List.of(firstSection)).getFirst();
+
+        assertEquals(ShotOutcome.HIT, damaged.outcome());
+        assertEquals(1, ship.damageCount());
+
         assertEquals(
             ShotOutcome.HIT,
-            board.fireAt(List.of(new Coordinate(1, 1))).getFirst().outcome()
+            board.fireAt(List.of(new Coordinate(1, 2))).getFirst().outcome()
         );
-        board.fireAt(List.of(new Coordinate(1, 2)));
         assertEquals(
             ShotOutcome.SUNK,
             board.fireAt(List.of(new Coordinate(1, 3))).getFirst().outcome()
         );
+        assertTrue(ship.isSunk());
     }
 
     /**

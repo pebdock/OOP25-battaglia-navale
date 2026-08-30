@@ -5,7 +5,6 @@ import it.unibo.battleship.model.BoardImpl;
 import it.unibo.battleship.model.BoardSnapshot;
 import it.unibo.battleship.model.Coordinate;
 import it.unibo.battleship.model.DoubleShotStatus;
-import it.unibo.battleship.model.FleetFactory;
 import it.unibo.battleship.model.Game;
 import it.unibo.battleship.model.GameImpl;
 import it.unibo.battleship.model.GamePhase;
@@ -47,7 +46,6 @@ import java.util.random.RandomGenerator;
 public final class GameControllerImpl implements GameController {
 
     private static final int SEQUENTIAL_LENGTH = 3;
-    private static final int SMOKE_SEED = 42;
 
     private final List<Coordinate> pendingTargets = new ArrayList<>();
     private final Map<PlayerId, String> harborNames = new EnumMap<>(PlayerId.class);
@@ -77,19 +75,6 @@ public final class GameControllerImpl implements GameController {
         this.placementCounts.put(PlayerId.PLAYER2, new EnumMap<>(ShipType.class));
         this.setupRandom = new Random();
         this.beginPlacement(PlayerId.PLAYER1, "Select a ship, choose its rotation, then click its first cell.");
-    }
-
-    @Override
-    public void startSmokeGame() {
-        this.requireView();
-        final RandomGenerator random = new Random(SMOKE_SEED);
-        this.startGame(
-            "Test Harbor 1",
-            "Test Harbor 2",
-            FleetFactory.createRandomBoard(random, "p1"),
-            FleetFactory.createRandomBoard(random, "p2"),
-            random
-        );
     }
 
     @Override

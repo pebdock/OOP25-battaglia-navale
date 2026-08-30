@@ -120,7 +120,6 @@ public final class BoardImpl implements Board {
         }
         final HitEffect effect = ship.registerHit(target);
         if (effect == HitEffect.ABSORBED) {
-            this.firedAt.add(target);
             return new ShotResult(target, ShotOutcome.ARMOR_ABSORBED);
         }
         this.firedAt.add(target);

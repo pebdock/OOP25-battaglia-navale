@@ -113,7 +113,7 @@ class BoardImplTest {
         assertTrue(opponentSnapshot.shipTypeAt(coordinate).isEmpty());
         assertEquals(CellState.UNKNOWN, opponentSnapshot.stateAt(coordinate));
     }
-    
+
     /**
      * Checks that the submarine is ignored by the sonar.
      */

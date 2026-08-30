@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.Comparator;
 
 /**
  * Typed ship with immutable occupied cells with private hit-tracking.
@@ -17,7 +18,7 @@ public final class Ship {
     order is not important and with contains() the search is simple */
     private final Set<Coordinate> hits = new HashSet<>(); /* it changes during the match and registers 
     the hits on the ship's coordinates */
-    private final Set<Coordinate> armorHit = new HashSet<>(); /* tracks hits on the ship's armor */
+    private final Set<Coordinate> armorHits = new HashSet<>();
 
     /**
      * Constructor that verifies that the occupied cells are the same number as the length of the ship.
@@ -52,8 +53,10 @@ public final class Ship {
     public static Ship place(final ShipId id, final ShipType type, final Coordinate origin, final Rotation rotation) {
         Objects.requireNonNull(origin, "origin");
         Objects.requireNonNull(rotation, "rotation");
-        final List<Offset> rotated = baseOffsets(Objects.requireNonNull(type, "type")); /* gets the initial shape 
-        of the ship and saves the offsets in a list */
+        final List<Offset> rotated = baseOffsets(
+            Objects.requireNonNull(type, "type")
+        );
+
         for (int turn = 0; turn < rotation.quarterTurns(); turn++) { // repeating the cycle based on the value in rotation
             for (int index = 0; index < rotated.size(); index++) { // theinternal cycle visits every offset of the ship
                 final Offset old = rotated.get(index); // retrieves the current offset
@@ -125,6 +128,16 @@ public final class Ship {
     }
 
     /**
+     * Checks whether the one-use armour is still available.
+     *
+     * @return true if the next impact will be absorbed
+     */
+    public boolean armorAvailable() {
+        return this.type == ShipType.ARMORED_SHIP
+            && this.armorHits.size() < this.cells.size();
+    }
+
+    /**
      * Tells if the ship has sunk.
      * 
      * @return true if the ship sunk
@@ -158,75 +171,78 @@ public final class Ship {
      * Register a hit coordinate of the ship in the hit set.
      * 
      * @param coordinate the coordinate to be hit
-     * @return whether the armour absorbed the hit or the cell was damaged
+     * @return wether the armour absorbed the impact or cell damaged
      */
     HitEffect registerHit(final Coordinate coordinate) {
         if (!this.occupies(coordinate)) {
             throw new IllegalArgumentException("The ship doesn't occupy " + coordinate);
         }
-
-        if (this.type == ShipType.ARMORED_SHIP && !this.armorHit.contains(coordinate)) {
-            this.armorHit.add(coordinate);
+        if (this.type == ShipType.ARMORED_SHIP && this.armorHits.add(coordinate)) {
             return HitEffect.ABSORBED;
         }
-
         this.hits.add(coordinate);
         return HitEffect.DAMAGED;
     }
 
     /**
-     * Returns how many cells are currently damaged.
+     * Returns the number of currently damaged ship sections.
      *
-     * @return number of damaged cells
+     * @return the number of damaged cells
      */
     public int damageCount() {
         return this.hits.size();
     }
 
     /**
-     * Tells whether there are still ship cells whose armour has not been hit.
+     * Returns an immutable copy of the damaged cells.
      *
-     * @return true if at least one cell of an armored ship has not yet absorbed a hit
+     * @return the damaged coordinates
      */
-    public boolean armorAvailable() {
-        return this.type == ShipType.ARMORED_SHIP
-            && this.armorHit.size() < this.cells.size();
-    }
-
     Set<Coordinate> hitCells() {
         return Set.copyOf(this.hits);
     }
 
+    /**
+     * Creates a relocated copy of this ship, preserving its armour state and
+     * number of damaged sections.
+     *
+     * @param origin the origin of the new placement
+     * @param rotation the rotation of the new placement
+     * @return the relocated ship
+     */
     Ship relocate(final Coordinate origin, final Rotation rotation) {
         final Ship moved = place(this.id, this.type, origin, rotation);
+        final List<Coordinate> sources = sortedCells(this.cells);
+        final List<Coordinate> destinations = sortedCells(moved.cells);
 
-        final List<Coordinate> oldArmorHit = this.armorHit.stream()
-            .sorted((first, second) -> {
-                final int rowComparison = Integer.compare(first.row(), second.row());
-                return rowComparison != 0
-                    ? rowComparison
-                    : Integer.compare(first.column(), second.column());
-            })
-            .toList();
+        for (int index = 0; index < sources.size(); index++) {
+            final Coordinate source = sources.get(index);
+            final Coordinate destination = destinations.get(index);
 
-        final List<Coordinate> destinations = moved.cells.stream()
-            .sorted((first, second) -> {
-                final int rowComparison = Integer.compare(first.row(), second.row());
-                return rowComparison != 0
-                    ? rowComparison
-                    : Integer.compare(first.column(), second.column());
-            })
-            .toList();
-
-        for (int index = 0; index < oldArmorHit.size(); index++) {
-            moved.armorHit.add(destinations.get(index));
-        }
-
-        for (int index = 0; index < this.hits.size(); index++) {
-            moved.hits.add(destinations.get(index));
+            if (this.armorHits.contains(source)) {
+                moved.armorHits.add(destination);
+            }
+            if (this.hits.contains(source)) {
+                moved.hits.add(destination);
+            }
         }
 
         return moved;
+    }
+
+    /**
+     * Returns sorted cells.
+     *
+     * @param coordinates input coordinates
+     * @return sorted cells
+     */
+    private static List<Coordinate> sortedCells(final Set<Coordinate> coordinates) {
+        return coordinates.stream()
+            .sorted(
+                Comparator.comparingInt(Coordinate::row)
+                    .thenComparingInt(Coordinate::column)
+            )
+            .toList();
     }
 
     /**
