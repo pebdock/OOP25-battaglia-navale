@@ -36,14 +36,10 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 }
-/*
- * Da configurare quando verrà creata la GUI
- * e verrà concordato il nome
- * [CONTROLLARE]
- * application {
- * mainClass.set("it.unibo.sampleapp.RateAMovie")
- * }
- */ 
+
+application {
+    mainClass.set("it.unibo.battleship.BattleshipApp")
+}
 
 
 tasks.withType<Test>().configureEach {
