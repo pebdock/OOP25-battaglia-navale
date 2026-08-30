@@ -41,6 +41,16 @@ application {
     mainClass.set("it.unibo.battleship.BattleshipApp")
 }
 
+tasks.named<org.gradle.api.tasks.bundling.Jar>("shadowJar") {
+    archiveFileName.set("OOP25-battaglia-navale-all.jar")
+    destinationDirectory.set(project.layout.projectDirectory)
+    mustRunAfter("check")
+}
+
+tasks.named("build") {
+    dependsOn("shadowJar")
+}
+
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform() // Enables the engine of JUnit 5/6
