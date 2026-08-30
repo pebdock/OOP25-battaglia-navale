@@ -51,6 +51,58 @@ class GameImplTest {
     }
 
     /**
+     * Checks that an absorbed impact passes the turn and does not charge the
+     * double shot, while the following damaging impact counts as a hit.
+     */
+    @Test
+    void absorbedArmorImpactDoesNotCountAsHit() {
+        final Board board1 = new BoardImpl(BoardImpl.REQUIRED_SIZE);
+        final Board board2 = new BoardImpl(BoardImpl.REQUIRED_SIZE);
+        placeCompleteFleet(board1, "p1");
+        placeCompleteFleet(board2, "p2");
+        final List<Coordinate> ignored = new ArrayList<>();
+        place(
+            board2,
+            ignored,
+            "p2-armoured",
+            ShipType.ARMORED_SHIP,
+            LAST_INDEX,
+            0
+        );
+        final Game game = new GameImpl(
+            new Player(PlayerId.PLAYER1, board1),
+            new Player(PlayerId.PLAYER2, board2),
+            Map.of(
+                ShotKind.NORMAL, new NormalShotStrategy(),
+                ShotKind.DOUBLE, new DoubleShotStrategy()
+            ),
+            new InvisibleSubmarinePolicy(new OwnerOnlyVisibilityPolicy())
+        );
+        game.start();
+
+        final Coordinate armoredSection = new Coordinate(LAST_INDEX, 0);
+        final TurnResult absorbed = game.playTurn(
+            ShotKind.NORMAL,
+            List.of(armoredSection)
+        );
+        assertEquals(ShotOutcome.ARMOR_ABSORBED, absorbed.shots().getFirst().outcome());
+        assertEquals(PlayerId.PLAYER2, game.currentPlayer());
+        assertEquals(0, game.snapshotFor(PlayerId.PLAYER1).doubleShot().progress());
+
+        game.playTurn(
+            ShotKind.NORMAL,
+            List.of(new Coordinate(LAST_INDEX, LAST_INDEX))
+        );
+        final TurnResult damaged = game.playTurn(
+            ShotKind.NORMAL,
+            List.of(armoredSection)
+        );
+        assertEquals(ShotOutcome.HIT, damaged.shots().getFirst().outcome());
+        assertEquals(PlayerId.PLAYER1, game.currentPlayer());
+        assertEquals(1, game.snapshotFor(PlayerId.PLAYER1).doubleShot().progress());
+    }
+
+    /**
      * Tests that a three valid shots unclock double shot and
      * double shot hits don't charge it.
      */

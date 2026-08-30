@@ -3,6 +3,7 @@ package it.unibo.battleship.model;
 import it.unibo.battleship.model.visibility.ShipVisibilityPolicy;
 import it.unibo.battleship.model.visibility.VisibilityContext;
 
+import java.util.Collections;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -219,10 +220,11 @@ public final class BoardImpl implements Board {
                 for (int column = 0; column < this.size; column++) {
                     final Coordinate origin = new Coordinate(row, column);
                     final Ship candidate = Ship.place(ship.id(), ship.type(), origin, rotation);
-                    if (candidate.cells().equals(ship.cells()) || candidate.cells().stream()
-                        .anyMatch(cell -> !cell.isInside(this.size)
-                            || this.firedAt.contains(cell)
-                            || this.isOccupiedByAnotherShip(cell, ship))) {
+                    if (!Collections.disjoint(candidate.cells(), ship.cells())
+                        || candidate.cells().stream()
+                            .anyMatch(cell -> !cell.isInside(this.size)
+                                || this.firedAt.contains(cell)
+                                || this.isOccupiedByAnotherShip(cell, ship))) {
                         continue;
                     }
                     placements.add(new Placement(origin, rotation));

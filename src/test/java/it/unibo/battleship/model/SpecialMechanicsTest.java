@@ -16,6 +16,7 @@ import it.unibo.battleship.model.testutils.FleetFactory;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -29,60 +30,109 @@ class SpecialMechanicsTest {
     private static final int GENERATED_FLEET_CELL_COUNT = 28;
 
     /**
-     * The armour absorbs exactly one impact and the same cell remains targetable.
+     * Each armored section absorbs its first impact and is damaged by its second one.
      */
     @Test
-    void armoredShipAbsorbsOnlyTheFirstHit() {
+    void armoredShipRequiresTwoImpactsPerCell() {
         final Board board = new BoardImpl(BoardImpl.REQUIRED_SIZE);
-        final Coordinate firstSection = new Coordinate(1, 1);
         final Ship ship = Ship.place(
             new ShipId("armoured"),
             ShipType.ARMORED_SHIP,
-            firstSection,
+            new Coordinate(1, 1),
             Rotation.DEGREES_0
         );
         board.placeShip(ship);
 
-        final ShotResult absorbed = board.fireAt(List.of(firstSection)).getFirst();
+        final List<Coordinate> sections = List.of(
+            new Coordinate(1, 1),
+            new Coordinate(1, 2),
+            new Coordinate(1, 3)
+        );
+        for (int index = 0; index < sections.size(); index++) {
+            final Coordinate section = sections.get(index);
+            final ShotResult absorbed = board.fireAt(List.of(section)).getFirst();
+            assertEquals(ShotOutcome.ARMOR_ABSORBED, absorbed.outcome());
+            assertFalse(absorbed.isHit());
+            assertFalse(ship.isHitAt(section));
+            assertEquals(index, ship.damageCount());
 
-        assertEquals(ShotOutcome.ARMOR_ABSORBED, absorbed.outcome());
-        assertFalse(absorbed.isHit());
+            final ShotResult damaged = board.fireAt(List.of(section)).getFirst();
+            final ShotOutcome expected = index == sections.size() - 1
+                ? ShotOutcome.SUNK
+                : ShotOutcome.HIT;
+            assertEquals(expected, damaged.outcome());
+            assertEquals(index + 1, ship.damageCount());
+            assertTrue(ship.isHitAt(section));
+        }
+
         assertFalse(ship.armorAvailable());
-        assertEquals(0, ship.damageCount());
+        assertEquals(sections.size(), ship.damageCount());
+        assertTrue(ship.isSunk());
+    }
 
-        final OwnerOnlyVisibilityPolicy visibility =
-            new OwnerOnlyVisibilityPolicy();
-
-        final BoardSnapshot ownerSnapshot = board.snapshot(
-            PlayerId.PLAYER1,
-            PlayerId.PLAYER1,
-            visibility
+    /**
+     * An absorbed impact is transient and does not reveal a protected ship section.
+     */
+    @Test
+    void absorbedArmorImpactDoesNotPersistInSnapshot() {
+        final Board board = new BoardImpl(BoardImpl.REQUIRED_SIZE);
+        final Coordinate section = new Coordinate(1, 1);
+        final Ship ship = Ship.place(
+            new ShipId("armoured-snapshot"),
+            ShipType.ARMORED_SHIP,
+            section,
+            Rotation.DEGREES_0
         );
+        board.placeShip(ship);
 
-        final BoardSnapshot opponentSnapshot = board.snapshot(
-            PlayerId.PLAYER1,
-            PlayerId.PLAYER2,
-            visibility
+        assertEquals(
+            ShotOutcome.ARMOR_ABSORBED,
+            board.fireAt(List.of(section)).getFirst().outcome()
         );
-
-        assertEquals(CellState.SHIP, ownerSnapshot.stateAt(firstSection));
-        assertEquals(CellState.UNKNOWN, opponentSnapshot.stateAt(firstSection));
-
-        final ShotResult damaged =
-            board.fireAt(List.of(firstSection)).getFirst();
-
-        assertEquals(ShotOutcome.HIT, damaged.outcome());
-        assertEquals(1, ship.damageCount());
-
+        final OwnerOnlyVisibilityPolicy visibility = new OwnerOnlyVisibilityPolicy();
+        assertEquals(
+            CellState.SHIP,
+            board.snapshot(
+                PlayerId.PLAYER1,
+                PlayerId.PLAYER1,
+                visibility
+            ).stateAt(section)
+        );
+        assertEquals(
+            CellState.UNKNOWN,
+            board.snapshot(
+                PlayerId.PLAYER1,
+                PlayerId.PLAYER2,
+                visibility
+            ).stateAt(section)
+        );
         assertEquals(
             ShotOutcome.HIT,
-            board.fireAt(List.of(new Coordinate(1, 2))).getFirst().outcome()
+            board.fireAt(List.of(section)).getFirst().outcome()
         );
-        assertEquals(
-            ShotOutcome.SUNK,
-            board.fireAt(List.of(new Coordinate(1, 3))).getFirst().outcome()
+    }
+
+    /**
+     * A section becomes unavailable as a target only after receiving real damage.
+     */
+    @Test
+    void damagedArmoredSectionCannotBeTargetedAgain() {
+        final Board board = new BoardImpl(BoardImpl.REQUIRED_SIZE);
+        final Coordinate section = new Coordinate(1, 1);
+        board.placeShip(Ship.place(
+            new ShipId("armoured-repeat"),
+            ShipType.ARMORED_SHIP,
+            section,
+            Rotation.DEGREES_0
+        ));
+
+        board.fireAt(List.of(section));
+        board.fireAt(List.of(section));
+        final GameRuleException repeated = assertThrows(
+            GameRuleException.class,
+            () -> board.fireAt(List.of(section))
         );
-        assertTrue(ship.isSunk());
+        assertEquals(RuleViolation.ALREADY_TARGETED, repeated.violation());
     }
 
     /**
@@ -147,6 +197,50 @@ class SpecialMechanicsTest {
             snapshot.cells().values().stream().filter(state -> state == CellState.HIT).count()
         );
         assertEquals(CellState.MISS, snapshot.stateAt(new Coordinate(2, 2)));
+    }
+
+    /**
+     * A moved armored ship preserves protection and damage for corresponding sections.
+     */
+    @Test
+    void randomMovementPreservesPerCellArmorState() {
+        final Board board = new BoardImpl(BoardImpl.REQUIRED_SIZE);
+        final Coordinate damagedSection = new Coordinate(2, 2);
+        final Coordinate unprotectedSection = new Coordinate(2, 3);
+        board.placeShip(Ship.place(
+            new ShipId("moving-armoured"),
+            ShipType.ARMORED_SHIP,
+            damagedSection,
+            Rotation.DEGREES_0
+        ));
+
+        board.fireAt(List.of(damagedSection));
+        board.fireAt(List.of(damagedSection));
+        board.fireAt(List.of(unprotectedSection));
+
+        final ShipMove move = board.moveRandomUnsunkShip(
+            new Random(MOVEMENT_SEED)
+        ).orElseThrow();
+        final List<Coordinate> destinations = move.to().stream()
+            .sorted(
+                Comparator.comparingInt(Coordinate::row)
+                    .thenComparingInt(Coordinate::column)
+            )
+            .toList();
+
+        final GameRuleException damagedAgain = assertThrows(
+            GameRuleException.class,
+            () -> board.fireAt(List.of(destinations.get(0)))
+        );
+        assertEquals(RuleViolation.ALREADY_TARGETED, damagedAgain.violation());
+        assertEquals(
+            ShotOutcome.HIT,
+            board.fireAt(List.of(destinations.get(1))).getFirst().outcome()
+        );
+        assertEquals(
+            ShotOutcome.ARMOR_ABSORBED,
+            board.fireAt(List.of(destinations.get(2))).getFirst().outcome()
+        );
     }
 
     /**
