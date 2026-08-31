@@ -1,13 +1,15 @@
 package it.unibo.battleship.model.shot;
 
 /**
- * Two coordinates shot.
+ * Strategy that fires at two distinct coordinates.
  */
-public final class DoubleShotStrategy implements ShotStrategy {
+public final class DoubleShotStrategy
+        extends AbstractShotStrategy {
 
-    @Override
-    public int requiredTargets() {
-        return 2;
+    /**
+     * Creates a double two-target strategy.
+     */
+    public DoubleShotStrategy() {
+        super(2);
     }
-
 }

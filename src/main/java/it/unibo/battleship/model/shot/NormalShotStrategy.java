@@ -1,13 +1,15 @@
 package it.unibo.battleship.model.shot;
 
 /**
- * One coordinate shot.
+ * Strategy that fires at one coordinate.
  */
-public final class NormalShotStrategy implements ShotStrategy {
+public final class NormalShotStrategy
+        extends AbstractShotStrategy {
 
-    @Override
-    public int requiredTargets() {
-        return 1;
+    /**
+     * Creates a normal one-target strategy.
+     */
+    public NormalShotStrategy() {
+        super(1);
     }
-
 }
