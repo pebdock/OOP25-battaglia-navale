@@ -9,7 +9,7 @@ public enum Rotation {
     DEGREES_180(2),
     DEGREES_270(3);
 
-    private final int quarterTurns; // it indicates how many 90 degrees turns are made
+    private final int quarterTurns;
 
     /**
      * Constructor implicitly private because it's an enum.
@@ -25,7 +25,7 @@ public enum Rotation {
      * 
      * @return the number of 90 degrees turns
      */
-    int quarterTurns() {
+    public int quarterTurns() {
         return this.quarterTurns;
     }
 }

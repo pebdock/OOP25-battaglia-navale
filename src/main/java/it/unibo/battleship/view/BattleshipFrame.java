@@ -26,11 +26,14 @@ import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.DefaultListCellRenderer;
+import javax.swing.JList;
 import javax.swing.Timer;
 import javax.swing.UIManager;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
@@ -90,7 +93,7 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
     private final JComboBox<ActionMode> actionMode = new JComboBox<>(ActionMode.values());
     private final JComboBox<ShotDirection> direction = new JComboBox<>(ShotDirection.values());
     private final JComboBox<PlacementOption> placementShip = new JComboBox<>();
-    private final JComboBox<PlacementRotation> placementRotation = new JComboBox<>(PlacementRotation.values());
+    private final JComboBox<Rotation> placementRotation = new JComboBox<>(Rotation.values());
     private final JButton resetFleet = new JButton("Reset fleet");
     private final JButton confirmFleet = new JButton("Confirm fleet");
     private final JLabel placementTitle = new JLabel(" ", JLabel.CENTER);
@@ -105,6 +108,7 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
      */
     public BattleshipFrame() {
         super(APPLICATION_TITLE);
+        this.placementRotation.setRenderer(new RotationRenderer());
         this.applySystemLookAndFeel();
         this.setDefaultCloseOperation(EXIT_ON_CLOSE);
         this.setMinimumSize(new Dimension(MINIMUM_WIDTH, MINIMUM_HEIGHT));
@@ -451,11 +455,11 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
 
     private void placeSelectedShip(final Coordinate origin) {
         final PlacementOption selected = (PlacementOption) this.placementShip.getSelectedItem();
-        final PlacementRotation selectedRotation = (PlacementRotation) this.placementRotation.getSelectedItem();
+        final Rotation selectedRotation = (Rotation) this.placementRotation.getSelectedItem();
         if (selected == null || selectedRotation == null) {
             return;
         }
-        this.controller.placeShip(origin, selected.type(), selectedRotation.rotation());
+        this.controller.placeShip(origin, selected.type(), selectedRotation);
     }
 
     private void renderBoard(
@@ -546,25 +550,49 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
         }
     }
 
-    private enum PlacementRotation {
-        HORIZONTAL("Horizontal", Rotation.DEGREES_0),
-        VERTICAL("Vertical", Rotation.DEGREES_90);
+    /**
+     * Renders rotations using user-friendly degree labels.
+     */
+    private static final class RotationRenderer extends DefaultListCellRenderer {
 
-        private final String label;
-        private final Rotation rotation;
-
-        PlacementRotation(final String label, final Rotation rotation) {
-            this.label = label;
-            this.rotation = rotation;
-        }
-
-        Rotation rotation() {
-            return this.rotation;
-        }
+        private static final long serialVersionUID = 1L;
 
         @Override
-        public String toString() {
-            return this.label;
+        public Component getListCellRendererComponent(
+            final JList<?> list,
+            final Object value,
+            final int index,
+            final boolean isSelected,
+            final boolean cellHasFocus
+        ) {
+            final JLabel label = (JLabel) super.getListCellRendererComponent(
+                list,
+                value,
+                index,
+                isSelected,
+                cellHasFocus
+            );
+
+            if (value instanceof Rotation rotation) {
+                label.setText(rotationLabel(rotation));
+            }
+
+            return label;
+        }
+
+        /**
+         * Tells the angle of a determined rotation.
+         * 
+         * @param rotation the selected rotation
+         * @return the angle of that rotation
+         */
+        private static String rotationLabel(final Rotation rotation) {
+            return switch (rotation) {
+                case DEGREES_0 -> "0°";
+                case DEGREES_90 -> "90°";
+                case DEGREES_180 -> "180°";
+                case DEGREES_270 -> "270°";
+            };
         }
     }
 }

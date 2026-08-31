@@ -159,4 +159,47 @@ class BoardImplTest {
 
         assertSame(rules, board.fleetRules());
     }
+
+    /**
+     * Verifies that every quarter turn produces a distinct RECON shape.
+     */
+    @Test
+    void fourDistinctRotationsRecon() {
+        final Coordinate origin = new Coordinate(4, 4);
+
+        final Ship zeroDegrees = Ship.place(
+            new ShipId("recon-0"),
+            ShipType.RECON,
+            origin,
+            Rotation.DEGREES_0
+        );
+        final Ship ninetyDegrees = Ship.place(
+            new ShipId("recon-90"),
+            ShipType.RECON,
+            origin,
+            Rotation.DEGREES_90
+        );
+        final Ship oneHundredEightyDegrees = Ship.place(
+            new ShipId("recon-180"),
+            ShipType.RECON,
+            origin,
+            Rotation.DEGREES_180
+        );
+        final Ship twoHundredSeventyDegrees = Ship.place(
+            new ShipId("recon-270"),
+            ShipType.RECON,
+            origin,
+            Rotation.DEGREES_270
+        );
+
+        assertEquals(
+            4,
+            Set.of(
+                zeroDegrees.cells(),
+                ninetyDegrees.cells(),
+                oneHundredEightyDegrees.cells(),
+                twoHundredSeventyDegrees.cells()
+            ).size()
+        );
+    }
 }
