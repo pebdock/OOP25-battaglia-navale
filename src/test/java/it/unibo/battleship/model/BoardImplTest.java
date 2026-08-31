@@ -2,6 +2,7 @@ package it.unibo.battleship.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -143,5 +144,19 @@ class BoardImplTest {
 
         assertEquals(3, detected);
         assertFalse(board.hasCompleteFleet());
+    }
+
+    /**
+     * Verifies that a board shows the correct immutable rules that it has.
+     */
+    @Test
+    void exposesFleetRules() {
+        final FleetRules rules = FleetRules.classic();
+        final Board board = new BoardImpl(
+            BoardImpl.REQUIRED_SIZE,
+            rules
+        );
+
+        assertSame(rules, board.fleetRules());
     }
 }

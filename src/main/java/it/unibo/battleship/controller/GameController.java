@@ -22,8 +22,9 @@ public interface GameController {
      *
      * @param firstHarbor name of the first harbor
      * @param secondHarbor name of the second harbor
+     * @param useArmoredShip whether both fleets include the armored ship
      */
-    void startPlacement(String firstHarbor, String secondHarbor);
+    void startPlacement(String firstHarbor, String secondHarbor, boolean useArmoredShip);
 
     /**
      * Places the selected ship on the current placement board.

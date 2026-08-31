@@ -48,6 +48,11 @@ public final class BoardImpl implements Board {
     }
 
     @Override
+    public FleetRules fleetRules() {
+        return this.fleetRules;
+    }
+
+    @Override
     public void placeShip(final Ship ship) {
         Objects.requireNonNull(ship, "ship");
         if (this.fleet.stream().anyMatch(existing -> existing.id().equals(ship.id()))) {

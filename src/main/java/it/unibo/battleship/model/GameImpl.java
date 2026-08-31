@@ -56,8 +56,15 @@ public final class GameImpl implements Game {
         final ShipVisibilityPolicy visibilityPolicy,
         final RandomGenerator random
     ) {
-        this.addPlayer(Objects.requireNonNull(player1, "player1"));
-        this.addPlayer(Objects.requireNonNull(player2, "player2"));
+        final Player checkedPlayer1 = Objects.requireNonNull(player1, "player1");
+        final Player checkedPlayer2 = Objects.requireNonNull(player2, "player2");
+
+        if (!checkedPlayer1.board().fleetRules().equals(checkedPlayer2.board().fleetRules())) {
+            throw new IllegalArgumentException("Players must use the same fleet rules");
+        }
+
+        this.addPlayer(checkedPlayer1);
+        this.addPlayer(checkedPlayer2);
         Objects.requireNonNull(strategies, "strategies");
         for (final ShotKind kind : ShotKind.values()) {
             ShotStrategy strategy = strategies.get(kind);

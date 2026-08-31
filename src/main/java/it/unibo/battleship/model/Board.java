@@ -19,6 +19,13 @@ public interface Board {
     int size();
 
     /**
+     * Returns the fleet rules enforced by this board.
+     *
+     * @return the immutable fleet rules
+     */
+    FleetRules fleetRules();
+
+    /**
      * Places a ship on the board.
      * 
      * @param ship the ship to place on the board

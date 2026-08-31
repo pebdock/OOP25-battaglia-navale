@@ -187,6 +187,40 @@ class GameImplTest {
     }
 
     /**
+     * Verifies that both players must use the same fleet configuration.
+     */
+    @Test
+    void differentReject() {
+        final Board classicBoard = new BoardImpl(
+            BoardImpl.REQUIRED_SIZE,
+            FleetRules.classic()
+        );
+        final Board armoredBoard = new BoardImpl(
+            BoardImpl.REQUIRED_SIZE,
+            FleetRules.withArmoredShip()
+        );
+
+        final Map<ShotKind, ShotStrategy> strategies = Map.of(
+            ShotKind.NORMAL,
+            new NormalShotStrategy(),
+            ShotKind.DOUBLE,
+            new DoubleShotStrategy()
+        );
+
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> new GameImpl(
+                new Player(PlayerId.PLAYER1, classicBoard),
+                new Player(PlayerId.PLAYER2, armoredBoard),
+                strategies,
+                new InvisibleSubmarinePolicy(
+                    new OwnerOnlyVisibilityPolicy()
+                )
+            )
+        );
+    }
+
+    /**
      * Creates a game with 2 complete fleets.
      * 
      * @return the union containing the game and the second player's ship cells

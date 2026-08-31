@@ -10,7 +10,9 @@ import it.unibo.battleship.model.GamePhase;
 import it.unibo.battleship.model.GameSnapshot;
 import it.unibo.battleship.model.Rotation;
 import it.unibo.battleship.model.ShipType;
+import it.unibo.battleship.model.FleetRules;
 
+import javax.swing.JCheckBox;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -75,6 +77,7 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
     private final JPanel root = new JPanel(this.cards);
     private final JTextField firstHarbor = new JTextField("Harbor 1", 18);
     private final JTextField secondHarbor = new JTextField("Harbor 2", 18);
+    private final JCheckBox includeArmoredShip = new JCheckBox("Include armored ship for both players", false);
     private final JPanel ownGrid = new JPanel();
     private final JPanel opponentGrid = new JPanel();
     private final JPanel placementGrid = new JPanel();
@@ -86,12 +89,13 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
     private final JTextArea logArea = new JTextArea(8, 70);
     private final JComboBox<ActionMode> actionMode = new JComboBox<>(ActionMode.values());
     private final JComboBox<ShotDirection> direction = new JComboBox<>(ShotDirection.values());
-    private final JComboBox<PlacementShip> placementShip = new JComboBox<>(PlacementShip.values());
+    private final JComboBox<PlacementOption> placementShip = new JComboBox<>();
     private final JComboBox<PlacementRotation> placementRotation = new JComboBox<>(PlacementRotation.values());
     private final JButton resetFleet = new JButton("Reset fleet");
     private final JButton confirmFleet = new JButton("Confirm fleet");
     private final JLabel placementTitle = new JLabel(" ", JLabel.CENTER);
     private final JLabel placementStatus = new JLabel(" ", JLabel.CENTER);
+    private transient FleetRules displayedFleetRules;
 
     private transient GameController controller;
     private Timer randomEventTimer;
@@ -135,8 +139,16 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
         final String title,
         final String status,
         final BoardSnapshot board,
+        final FleetRules rules,
         final boolean confirmEnabled
     ) {
+        final FleetRules checkedRules = Objects.requireNonNull(rules, "rules");
+
+        if (!checkedRules.equals(this.displayedFleetRules)) {
+            this.displayedFleetRules = checkedRules;
+            this.configurePlacementShips(checkedRules);
+        }
+
         this.placementTitle.setText(title);
         this.placementStatus.setText(status);
         this.confirmFleet.setEnabled(confirmEnabled);
@@ -250,15 +262,29 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
         constraints.gridx = 0;
         constraints.gridy = 3;
         panel.add(new JLabel("Name of the second harbor:"), constraints);
+
         constraints.gridx = 1;
         panel.add(this.secondHarbor, constraints);
 
-        final JButton start = new JButton("Place the fleets");
-        start.addActionListener(event -> this.startFromForm());
         constraints.gridx = 0;
         constraints.gridy = 4;
         constraints.gridwidth = 2;
-        constraints.insets = new Insets(START_BUTTON_TOP_MARGIN, 8, 8, 8);
+        constraints.insets = new Insets(8, 8, 8, 8);
+        panel.add(this.includeArmoredShip, constraints);
+
+        final JButton start = new JButton("Place the fleets");
+        start.addActionListener(event -> this.startFromForm());
+
+        constraints.gridx = 0;
+        final int gridy = 5;
+        constraints.gridy = gridy;
+        constraints.gridwidth = 2;
+        constraints.insets = new Insets(
+            START_BUTTON_TOP_MARGIN,
+            8,
+            8,
+            8
+        );
         panel.add(start, constraints);
         return panel;
     }
@@ -378,7 +404,7 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
             JOptionPane.showMessageDialog(this, "Enter the names of both harbors.");
             return;
         }
-        this.controller.startPlacement(first, second);
+        this.controller.startPlacement(first, second, this.includeArmoredShip.isSelected());
     }
 
     private void renderPlacementBoard(final BoardSnapshot snapshot) {
@@ -404,8 +430,27 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
         this.placementGrid.repaint();
     }
 
+    /**
+     * Updates the ship selector using the active fleet rules.
+     *
+     * @param rules active fleet rules
+     */
+    private void configurePlacementShips(final FleetRules rules) {
+        this.placementShip.removeAllItems();
+
+        for (final ShipType type : ShipType.values()) {
+            final int quantity = rules.quantity(type);
+
+            if (quantity > 0) {
+                this.placementShip.addItem(
+                    new PlacementOption(type, quantity)
+                );
+            }
+        }
+    }
+
     private void placeSelectedShip(final Coordinate origin) {
-        final PlacementShip selected = (PlacementShip) this.placementShip.getSelectedItem();
+        final PlacementOption selected = (PlacementOption) this.placementShip.getSelectedItem();
         final PlacementRotation selectedRotation = (PlacementRotation) this.placementRotation.getSelectedItem();
         if (selected == null || selectedRotation == null) {
             return;
@@ -466,30 +511,38 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
         }
     }
 
-    private enum PlacementShip {
-        FLAGSHIP("Flagship (1)", ShipType.FLAGSHIP),
-        BATTLESHIP("Battleship (1)", ShipType.BATTLESHIP),
-        CRUISER("Cruiser (2)", ShipType.CRUISER),
-        SUBMARINE("Invisible submarine (1)", ShipType.INVISIBLE_SUBMARINE),
-        DESTROYER("Destroyer (2)", ShipType.DESTROYER),
-        RECON("Recon ship (1)", ShipType.RECON),
-        ARMORED("Armored ship (1)", ShipType.ARMORED_SHIP);
+    /**
+     * One ship type displayed in the placement selector.
+     *
+     * @param type ship type
+     * @param quantity required quantity
+     */
+    private record PlacementOption(ShipType type, int quantity) {
+        private PlacementOption {
+            Objects.requireNonNull(type, "type");
 
-        private final String label;
-        private final ShipType type;
-
-        PlacementShip(final String label, final ShipType type) {
-            this.label = label;
-            this.type = type;
-        }
-
-        ShipType type() {
-            return this.type;
+            if (quantity <= 0) {
+                throw new IllegalArgumentException(
+                    "Quantity must be positive"
+                );
+            }
         }
 
         @Override
         public String toString() {
-            return this.label;
+            return label(this.type) + " (" + this.quantity + ")";
+        }
+
+        private static String label(final ShipType type) {
+            return switch (type) {
+                case FLAGSHIP -> "Flagship";
+                case BATTLESHIP -> "Battleship";
+                case CRUISER -> "Cruiser";
+                case INVISIBLE_SUBMARINE -> "Invisible submarine";
+                case DESTROYER -> "Destroyer";
+                case RECON -> "Recon ship";
+                case ARMORED_SHIP -> "Armored ship";
+            };
         }
     }
 

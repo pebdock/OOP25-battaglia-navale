@@ -4,6 +4,7 @@ import it.unibo.battleship.controller.GameController;
 import it.unibo.battleship.model.BoardSnapshot;
 import it.unibo.battleship.model.Coordinate;
 import it.unibo.battleship.model.GameSnapshot;
+import it.unibo.battleship.model.FleetRules;
 
 import java.util.List;
 
@@ -30,9 +31,10 @@ public interface BattleshipView {
      * @param title header text
      * @param status status or hint text
      * @param board visible own board
+     * @param rules fleet rules shared by both players
      * @param confirmEnabled whether the fleet can be confirmed
      */
-    void showPlacement(String title, String status, BoardSnapshot board, boolean confirmEnabled);
+    void showPlacement(String title, String status, BoardSnapshot board, FleetRules rules, boolean confirmEnabled);
 
     /**
      * Shows the privacy card used when passing the device.

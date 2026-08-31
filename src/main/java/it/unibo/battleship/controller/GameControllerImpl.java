@@ -47,7 +47,6 @@ import java.util.random.RandomGenerator;
 public final class GameControllerImpl implements GameController {
 
     private static final int SEQUENTIAL_LENGTH = 3;
-    private static final FleetRules PLACEMENT_FLEET_RULES = FleetRules.withArmoredShip();
 
     private final List<Coordinate> pendingTargets = new ArrayList<>();
     private final Map<PlayerId, String> harborNames = new EnumMap<>(PlayerId.class);
@@ -58,6 +57,7 @@ public final class GameControllerImpl implements GameController {
     private Game game;
     private PlayerId placingPlayer = PlayerId.PLAYER1;
     private RandomGenerator setupRandom;
+    private FleetRules placementRules;
 
     @Override
     public void attachView(final BattleshipView attachedView) {
@@ -66,13 +66,16 @@ public final class GameControllerImpl implements GameController {
     }
 
     @Override
-    public void startPlacement(final String firstHarbor, final String secondHarbor) {
+    public void startPlacement(final String firstHarbor, final String secondHarbor, final boolean useArmoredShip) {
         this.requireView();
         this.resetSession();
+        this.placementRules = useArmoredShip
+            ? FleetRules.withArmoredShip()
+            : FleetRules.classic();
         this.harborNames.put(PlayerId.PLAYER1, firstHarbor);
         this.harborNames.put(PlayerId.PLAYER2, secondHarbor);
-        this.placementBoards.put(PlayerId.PLAYER1, new BoardImpl(BoardImpl.REQUIRED_SIZE, PLACEMENT_FLEET_RULES));
-        this.placementBoards.put(PlayerId.PLAYER2, new BoardImpl(BoardImpl.REQUIRED_SIZE, PLACEMENT_FLEET_RULES));
+        this.placementBoards.put(PlayerId.PLAYER1, new BoardImpl(BoardImpl.REQUIRED_SIZE, this.placementRules));
+        this.placementBoards.put(PlayerId.PLAYER2, new BoardImpl(BoardImpl.REQUIRED_SIZE, this.placementRules));
         this.placementCounts.put(PlayerId.PLAYER1, new EnumMap<>(ShipType.class));
         this.placementCounts.put(PlayerId.PLAYER2, new EnumMap<>(ShipType.class));
         this.setupRandom = new Random();
@@ -87,7 +90,7 @@ public final class GameControllerImpl implements GameController {
         Objects.requireNonNull(rotation, "rotation");
         final Map<ShipType, Integer> counts = this.placementCounts.get(this.placingPlayer);
         final int number = counts.getOrDefault(type, 0) + 1;
-        if (number > PLACEMENT_FLEET_RULES.quantity(type)) {
+        if (number > this.placementRules.quantity(type)) {
             this.refreshPlacement("All " + typeLabel(type) + " ships have already been placed.");
             return;
         }
@@ -112,7 +115,7 @@ public final class GameControllerImpl implements GameController {
     @Override
     public void resetCurrentFleet() {
         this.requireView();
-        this.placementBoards.put(this.placingPlayer, new BoardImpl(BoardImpl.REQUIRED_SIZE, PLACEMENT_FLEET_RULES));
+        this.placementBoards.put(this.placingPlayer, new BoardImpl(BoardImpl.REQUIRED_SIZE, this.placementRules));
         this.placementCounts.put(this.placingPlayer, new EnumMap<>(ShipType.class));
         this.refreshPlacement("The fleet has been reset. Place the ships again.");
     }
@@ -204,6 +207,7 @@ public final class GameControllerImpl implements GameController {
             "Fleet placement — " + this.harborNames.get(this.placingPlayer),
             status,
             snapshot,
+            board.fleetRules(),
             board.hasCompleteFleet()
         );
     }
@@ -361,6 +365,7 @@ public final class GameControllerImpl implements GameController {
         this.placementBoards.clear();
         this.placementCounts.clear();
         this.setupRandom = null;
+        this.placementRules = null;
     }
 
     private void requireView() {
