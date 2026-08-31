@@ -30,6 +30,7 @@ import it.unibo.battleship.model.shot.ShotStrategy;
 import it.unibo.battleship.model.visibility.InvisibleSubmarinePolicy;
 import it.unibo.battleship.model.visibility.OwnerOnlyVisibilityPolicy;
 import it.unibo.battleship.view.BattleshipView;
+import it.unibo.battleship.model.FleetRules;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -46,6 +47,7 @@ import java.util.random.RandomGenerator;
 public final class GameControllerImpl implements GameController {
 
     private static final int SEQUENTIAL_LENGTH = 3;
+    private static final FleetRules PLACEMENT_FLEET_RULES = FleetRules.withArmoredShip();
 
     private final List<Coordinate> pendingTargets = new ArrayList<>();
     private final Map<PlayerId, String> harborNames = new EnumMap<>(PlayerId.class);
@@ -69,8 +71,8 @@ public final class GameControllerImpl implements GameController {
         this.resetSession();
         this.harborNames.put(PlayerId.PLAYER1, firstHarbor);
         this.harborNames.put(PlayerId.PLAYER2, secondHarbor);
-        this.placementBoards.put(PlayerId.PLAYER1, new BoardImpl(BoardImpl.REQUIRED_SIZE));
-        this.placementBoards.put(PlayerId.PLAYER2, new BoardImpl(BoardImpl.REQUIRED_SIZE));
+        this.placementBoards.put(PlayerId.PLAYER1, new BoardImpl(BoardImpl.REQUIRED_SIZE, PLACEMENT_FLEET_RULES));
+        this.placementBoards.put(PlayerId.PLAYER2, new BoardImpl(BoardImpl.REQUIRED_SIZE, PLACEMENT_FLEET_RULES));
         this.placementCounts.put(PlayerId.PLAYER1, new EnumMap<>(ShipType.class));
         this.placementCounts.put(PlayerId.PLAYER2, new EnumMap<>(ShipType.class));
         this.setupRandom = new Random();
@@ -85,7 +87,7 @@ public final class GameControllerImpl implements GameController {
         Objects.requireNonNull(rotation, "rotation");
         final Map<ShipType, Integer> counts = this.placementCounts.get(this.placingPlayer);
         final int number = counts.getOrDefault(type, 0) + 1;
-        if (number > type.requiredQuantity()) {
+        if (number > PLACEMENT_FLEET_RULES.quantity(type)) {
             this.refreshPlacement("All " + typeLabel(type) + " ships have already been placed.");
             return;
         }
@@ -110,7 +112,7 @@ public final class GameControllerImpl implements GameController {
     @Override
     public void resetCurrentFleet() {
         this.requireView();
-        this.placementBoards.put(this.placingPlayer, new BoardImpl(BoardImpl.REQUIRED_SIZE));
+        this.placementBoards.put(this.placingPlayer, new BoardImpl(BoardImpl.REQUIRED_SIZE, PLACEMENT_FLEET_RULES));
         this.placementCounts.put(this.placingPlayer, new EnumMap<>(ShipType.class));
         this.refreshPlacement("The fleet has been reset. Place the ships again.");
     }

@@ -56,11 +56,28 @@ class GameImplTest {
      */
     @Test
     void absorbedArmorImpactDoesNotCountAsHit() {
-        final Board board1 = new BoardImpl(BoardImpl.REQUIRED_SIZE);
-        final Board board2 = new BoardImpl(BoardImpl.REQUIRED_SIZE);
+        final Board board1 = new BoardImpl(
+            BoardImpl.REQUIRED_SIZE,
+            FleetRules.withArmoredShip()
+        );
+        final Board board2 = new BoardImpl(
+            BoardImpl.REQUIRED_SIZE,
+            FleetRules.withArmoredShip()
+        );
+
+        final List<Coordinate> ignored = new ArrayList<>();
+
         placeCompleteFleet(board1, "p1");
         placeCompleteFleet(board2, "p2");
-        final List<Coordinate> ignored = new ArrayList<>();
+
+        place(
+            board1,
+            ignored,
+            "p1-armoured",
+            ShipType.ARMORED_SHIP,
+            LAST_INDEX,
+            0
+        );
         place(
             board2,
             ignored,
@@ -175,8 +192,8 @@ class GameImplTest {
      * @return the union containing the game and the second player's ship cells
      */
     private static Complete newGame() {
-        final Board board1 = new BoardImpl(10);
-        final Board board2 = new BoardImpl(10);
+        final Board board1 = new BoardImpl(10, FleetRules.classic());
+        final Board board2 = new BoardImpl(10, FleetRules.classic());
         placeCompleteFleet(board1, "p1");
         final List<Coordinate> playerTwoCells = placeCompleteFleet(board2, "p2");
         final Player p1 = new Player(PlayerId.PLAYER1, board1);

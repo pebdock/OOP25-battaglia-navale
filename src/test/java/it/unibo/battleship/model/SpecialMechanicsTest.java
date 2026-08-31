@@ -34,7 +34,7 @@ class SpecialMechanicsTest {
      */
     @Test
     void armoredShipRequiresTwoImpactsPerCell() {
-        final Board board = new BoardImpl(BoardImpl.REQUIRED_SIZE);
+        final Board board = new BoardImpl(BoardImpl.REQUIRED_SIZE, FleetRules.withArmoredShip());
         final Ship ship = Ship.place(
             new ShipId("armoured"),
             ShipType.ARMORED_SHIP,
@@ -75,7 +75,7 @@ class SpecialMechanicsTest {
      */
     @Test
     void absorbedArmorImpactDoesNotPersistInSnapshot() {
-        final Board board = new BoardImpl(BoardImpl.REQUIRED_SIZE);
+        final Board board = new BoardImpl(BoardImpl.REQUIRED_SIZE, FleetRules.withArmoredShip());
         final Coordinate section = new Coordinate(1, 1);
         final Ship ship = Ship.place(
             new ShipId("armoured-snapshot"),
@@ -117,7 +117,7 @@ class SpecialMechanicsTest {
      */
     @Test
     void damagedArmoredSectionCannotBeTargetedAgain() {
-        final Board board = new BoardImpl(BoardImpl.REQUIRED_SIZE);
+        final Board board = new BoardImpl(BoardImpl.REQUIRED_SIZE, FleetRules.withArmoredShip());
         final Coordinate section = new Coordinate(1, 1);
         board.placeShip(Ship.place(
             new ShipId("armoured-repeat"),
@@ -140,7 +140,7 @@ class SpecialMechanicsTest {
      */
     @Test
     void sequentialShotValidatesGeometry() {
-        final Board board = new BoardImpl(BoardImpl.REQUIRED_SIZE);
+        final Board board = new BoardImpl(BoardImpl.REQUIRED_SIZE, FleetRules.withArmoredShip());
         board.placeShip(Ship.place(
             new ShipId("cruiser"),
             ShipType.CRUISER,
@@ -159,7 +159,7 @@ class SpecialMechanicsTest {
 
         final GameRuleException exception = assertThrows(
             GameRuleException.class,
-            () -> strategy.execute(new BoardImpl(BoardImpl.REQUIRED_SIZE), List.of(
+            () -> strategy.execute(new BoardImpl(BoardImpl.REQUIRED_SIZE, FleetRules.withArmoredShip()), List.of(
                 new Coordinate(1, 1),
                 new Coordinate(1, 2),
                 new Coordinate(2, 2)
@@ -173,7 +173,7 @@ class SpecialMechanicsTest {
      */
     @Test
     void randomMovementPreservesDamage() {
-        final Board board = new BoardImpl(BoardImpl.REQUIRED_SIZE);
+        final Board board = new BoardImpl(BoardImpl.REQUIRED_SIZE, FleetRules.withArmoredShip());
         board.placeShip(Ship.place(
             new ShipId("moving"),
             ShipType.CRUISER,
@@ -204,7 +204,7 @@ class SpecialMechanicsTest {
      */
     @Test
     void randomMovementPreservesPerCellArmorState() {
-        final Board board = new BoardImpl(BoardImpl.REQUIRED_SIZE);
+        final Board board = new BoardImpl(BoardImpl.REQUIRED_SIZE, FleetRules.withArmoredShip());
         final Coordinate damagedSection = new Coordinate(2, 2);
         final Coordinate unprotectedSection = new Coordinate(2, 3);
         board.placeShip(Ship.place(
@@ -346,7 +346,7 @@ class SpecialMechanicsTest {
      */
     @Test
     void snapshotReturnsVisibleShipType() {
-        final Board board = new BoardImpl(BoardImpl.REQUIRED_SIZE);
+        final Board board = new BoardImpl(BoardImpl.REQUIRED_SIZE, FleetRules.withArmoredShip());
 
         board.placeShip(Ship.place(
             new ShipId("destroyer"),
@@ -376,7 +376,7 @@ class SpecialMechanicsTest {
      */
     @Test
     void snapshotRejectsCoordinateOutsideSnapshot() {
-        final Board board = new BoardImpl(BoardImpl.REQUIRED_SIZE);
+        final Board board = new BoardImpl(BoardImpl.REQUIRED_SIZE, FleetRules.withArmoredShip());
 
         final BoardSnapshot snapshot = board.snapshot(
             PlayerId.PLAYER1,

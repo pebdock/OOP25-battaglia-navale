@@ -5,7 +5,6 @@ import it.unibo.battleship.model.visibility.VisibilityContext;
 
 import java.util.Collections;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -23,20 +22,24 @@ public final class BoardImpl implements Board {
     public static final int REQUIRED_SIZE = 10;
 
     private final int size;
+    private final FleetRules fleetRules;
     private final Map<Coordinate, Ship> occupiedBy = new HashMap<>();
     private final List<Ship> fleet = new ArrayList<>();
     private final Set<Coordinate> firedAt = new HashSet<>();
 
     /**
-     * Build a game board with defined size.
-     * 
-     * @param size number of rows or cols
+     * Builds a board that uses specified fleet rules.
+     *
+     * @param size number of rows and columns
+     * @param fleetRules immutable fleet rules used by this board
      */
-    public BoardImpl(final int size) {
+    public BoardImpl(final int size, final FleetRules fleetRules) {
         if (size != REQUIRED_SIZE) {
             throw new IllegalArgumentException("The board must be 10x10");
         }
+
         this.size = size;
+        this.fleetRules = Objects.requireNonNull(fleetRules, "fleetRules");
     }
 
     @Override
@@ -53,7 +56,7 @@ public final class BoardImpl implements Board {
         final long sameType = this.fleet.stream()
             .filter(existing -> existing.type() == ship.type())
             .count();
-        if (sameType >= ship.type().requiredQuantity()) {
+        if (sameType >= this.fleetRules.quantity(ship.type())) {
             throw violation(RuleViolation.FLEET_LIMIT_REACHED, "Too many ships of thys type");
         }
         for (final Coordinate coordinate : ship.cells()) {
@@ -135,10 +138,11 @@ public final class BoardImpl implements Board {
 
     @Override
     public boolean hasCompleteFleet() {
-        return Arrays.stream(ShipType.values())
-            .filter(ShipType::requiredForClassicFleet)
-            .allMatch(type ->
-            this.fleet.stream().filter(ship -> ship.type() == type).count() == type.requiredQuantity()
+        return this.fleetRules.quantities().entrySet().stream()
+        .allMatch(entry ->
+            this.fleet.stream()
+                .filter(ship -> ship.type() == entry.getKey())
+                .count() == entry.getValue()
         );
     }
 

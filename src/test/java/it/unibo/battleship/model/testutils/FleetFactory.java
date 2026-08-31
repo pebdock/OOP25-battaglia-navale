@@ -12,6 +12,7 @@ import it.unibo.battleship.model.Rotation;
 import it.unibo.battleship.model.Ship;
 import it.unibo.battleship.model.ShipId;
 import it.unibo.battleship.model.ShipType;
+import it.unibo.battleship.model.FleetRules;
 
 /**
  * Utility for tests: it builds valid complete automatically placed fleets for a local game. 
@@ -33,9 +34,10 @@ public final class FleetFactory {
     public static Board createRandomBoard(final RandomGenerator random, final String idPrefix) {
         Objects.requireNonNull(random, "random");
         Objects.requireNonNull(idPrefix, "idPrefix");
+        final FleetRules rules = FleetRules.withArmoredShip();
         for (int boardAttempt = 0; boardAttempt < BOARD_ATTEMPTS; boardAttempt++) {
-            final Board board = new BoardImpl(BoardImpl.REQUIRED_SIZE);
-            if (placeFleet(board, random, idPrefix)) {
+            final Board board = new BoardImpl(BoardImpl.REQUIRED_SIZE, rules);
+            if (placeFleet(board, rules, random, idPrefix)) {
                 return board;
             }
         }
@@ -44,12 +46,13 @@ public final class FleetFactory {
 
     private static boolean placeFleet(
         final Board board,
+        final FleetRules rules,
         final RandomGenerator random,
         final String idPrefix
     ) {
         int sequence = 0;
         for (final ShipType type : ShipType.values()) {
-            for (int quantity = 0; quantity < type.requiredQuantity(); quantity++) {
+            for (int quantity = 0; quantity < rules.quantity(type); quantity++) {
                 final ShipId id = new ShipId(
                     idPrefix + '-' + type.name().toLowerCase(Locale.ROOT) + '-' + sequence
                 );

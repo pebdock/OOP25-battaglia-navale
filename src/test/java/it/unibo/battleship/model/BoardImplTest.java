@@ -23,7 +23,7 @@ class BoardImplTest {
      */
     @Test
     void checkMissHitSunk() {
-        final Board board = new BoardImpl(10);
+        final Board board = new BoardImpl(10, FleetRules.classic());
         board.placeShip(Ship.place(
             new ShipId("distr"),
             ShipType.DESTROYER,
@@ -62,7 +62,7 @@ class BoardImplTest {
      */
     @Test
     void checkValidShots() {
-        final Board board = new BoardImpl(10);
+        final Board board = new BoardImpl(10, FleetRules.classic());
         board.placeShip(Ship.place(
             new ShipId("sub"),
             ShipType.INVISIBLE_SUBMARINE,
@@ -89,7 +89,7 @@ class BoardImplTest {
      */
     @Test
     void ownerSnapshotShowsShipTypeButOpponentSnapshotDoesNot() {
-        final Board board = new BoardImpl(10);
+        final Board board = new BoardImpl(10, FleetRules.classic());
         final Coordinate coordinate = new Coordinate(2, 2);
         board.placeShip(Ship.place(
             new ShipId("flagship"),
@@ -120,7 +120,7 @@ class BoardImplTest {
     @Test
     void sonarIgnoreSub() {
 
-        final Board board = new BoardImpl(10);
+        final Board board = new BoardImpl(10, FleetRules.classic());
 
         board.placeShip(Ship.place(
             new ShipId("Sub"),
