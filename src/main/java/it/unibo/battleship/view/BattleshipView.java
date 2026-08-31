@@ -1,11 +1,15 @@
 package it.unibo.battleship.view;
 
-import it.unibo.battleship.model.BoardSnapshot;
 import it.unibo.battleship.model.Coordinate;
-import it.unibo.battleship.model.GameSnapshot;
-import it.unibo.battleship.model.FleetRules;
+import it.unibo.battleship.model.PlayerId;
+import it.unibo.battleship.model.RandomEventResult;
+import it.unibo.battleship.model.RuleViolation;
+import it.unibo.battleship.model.ShotKind;
+import it.unibo.battleship.model.SonarResult;
+import it.unibo.battleship.model.TurnResult;
 
-import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * Graphical surface updated by the controller.
@@ -27,13 +31,9 @@ public interface BattleshipView {
     /**
      * Shows the fleet-placement screen for the current player.
      *
-     * @param title header text
-     * @param status status or hint text
-     * @param board visible own board
-     * @param rules fleet rules shared by both players
-     * @param confirmEnabled whether the fleet can be confirmed
+     * @param state immutable placement presentation state
      */
-    void showPlacement(String title, String status, BoardSnapshot board, FleetRules rules, boolean confirmEnabled);
+    void showPlacement(PlacementViewState state);
 
     /**
      * Shows the privacy card used when passing the device.
@@ -45,48 +45,14 @@ public interface BattleshipView {
     /**
      * Shows the battle screen for the current player.
      *
-     * @param snapshot visible game state
-     * @param turnText current-turn label
-     * @param abilitiesText available abilities
-     * @param ownTitle own-board title
-     * @param opponentTitle opponent-board title
-     * @param pendingTargets cells selected for a double shot
+     * @param state immutable game presentation state
      */
-    void showGame(
-        GameSnapshot snapshot,
-        String turnText,
-        String abilitiesText,
-        String ownTitle,
-        String opponentTitle,
-        List<Coordinate> pendingTargets
-    );
+    void showGame(GameViewState state);
 
     /**
      * Clears the match log.
      */
     void clearLog();
-
-    /**
-     * Appends a line to the match log.
-     *
-     * @param text log line
-     */
-    void appendLog(String text);
-
-    /**
-     * Shows an informational dialog.
-     *
-     * @param title dialog title
-     * @param message dialog body
-     */
-    void showInfo(String title, String message);
-
-    /**
-     * Shows a rule-warning dialog.
-     *
-     * @param message warning text
-     */
-    void showWarning(String message);
 
     /**
      * Announces the winner of the match.
@@ -109,4 +75,61 @@ public interface BattleshipView {
      * Stops the periodic random-event timer.
      */
     void stopRandomEventTimer();
+
+    /**
+     * Appends the initial match message to the game log.
+     *
+     * @param firstHarbor name of the first harbor
+     */
+    void appendGameStarted(String firstHarbor);
+
+    /**
+     * Reports the first selected target of a double shot.
+     *
+     * @param target selected target
+     */
+    void appendDoubleTargetSelected(Coordinate target);
+
+    /**
+     * Presents the result of an accepted shot action.
+     *
+     * @param harborName name of the acting harbor
+     * @param kind selected shot kind
+     * @param result immutable turn result
+     */
+    void appendTurnResult(
+        String harborName,
+        ShotKind kind,
+        TurnResult result
+    );
+
+    /**
+     * Presents the result of an accepted sonar action.
+     *
+     * @param harborName name of the acting harbor
+     * @param result immutable sonar result
+     */
+    void appendSonarResult(
+        String harborName,
+        SonarResult result
+    );
+
+    /**
+     * Presents the result of a periodic random event.
+     *
+     * @param result optional random-event result
+     * @param harborNames immutable harbor names indexed by player
+     */
+    void appendRandomEvent(
+        Optional<RandomEventResult> result,
+        Map<PlayerId, String> harborNames
+    );
+
+    /**
+     * Presents a rejected operation to the user.
+     *
+     * @param violation rule that rejected the operation
+     */
+    void showRuleViolation(RuleViolation violation);
+
 }

@@ -5,8 +5,14 @@ import it.unibo.battleship.model.BoardSnapshot;
 import it.unibo.battleship.model.Coordinate;
 import it.unibo.battleship.model.GamePhase;
 import it.unibo.battleship.model.GameSnapshot;
+import it.unibo.battleship.model.PlayerId;
+import it.unibo.battleship.model.RandomEventResult;
 import it.unibo.battleship.model.Rotation;
+import it.unibo.battleship.model.RuleViolation;
 import it.unibo.battleship.model.ShipType;
+import it.unibo.battleship.model.ShotKind;
+import it.unibo.battleship.model.SonarResult;
+import it.unibo.battleship.model.TurnResult;
 import it.unibo.battleship.model.FleetRules;
 
 import javax.swing.JCheckBox;
@@ -38,13 +44,15 @@ import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.Toolkit;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
- * Local two-player hot-seat interface.
+ * Swing implementation of the Battleship graphical view.
+ *
  */
-@SuppressFBWarnings(
-    value = "SE_TRANSIENT_FIELD_NOT_RESTORED",
+@SuppressFBWarnings(value = "SE_TRANSIENT_FIELD_NOT_RESTORED", 
     justification = "The application frame is runtime UI state and is never serialized."
 )
 public final class BattleshipFrame extends JFrame implements BattleshipView {
@@ -94,8 +102,8 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
     private final JButton confirmFleet = new JButton("Confirm fleet");
     private final JLabel placementTitle = new JLabel(" ", JLabel.CENTER);
     private final JLabel placementStatus = new JLabel(" ", JLabel.CENTER);
-    private transient FleetRules displayedFleetRules;
 
+    private transient FleetRules displayedFleetRules;
     private transient BattleshipViewObserver observer;
     private Timer randomEventTimer;
 
@@ -119,8 +127,7 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
 
     @Override
     public void setObserver(
-        final BattleshipViewObserver observer
-    ) {
+            final BattleshipViewObserver observer) {
         this.observer = Objects.requireNonNull(observer, "observer");
     }
 
@@ -137,23 +144,17 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
 
     @Override
     public void showPlacement(
-        final String title,
-        final String status,
-        final BoardSnapshot board,
-        final FleetRules rules,
-        final boolean confirmEnabled
-    ) {
-        final FleetRules checkedRules = Objects.requireNonNull(rules, "rules");
+            final PlacementViewState state) {
+        this.placementTitle.setText(
+                "Fleet placement — " + state.harborName());
 
-        if (!checkedRules.equals(this.displayedFleetRules)) {
-            this.displayedFleetRules = checkedRules;
-            this.configurePlacementShips(checkedRules);
-        }
+        this.placementStatus.setText(
+                SwingText.placementFeedback(state.feedback()));
 
-        this.placementTitle.setText(title);
-        this.placementStatus.setText(status);
-        this.confirmFleet.setEnabled(confirmEnabled);
-        this.renderPlacementBoard(board);
+        this.confirmFleet.setEnabled(state.complete());
+
+        this.configurePlacementShips(state.rules());
+        this.renderPlacementBoard(state.board());
         this.cards.show(this.root, PLACEMENT_CARD);
     }
 
@@ -164,37 +165,39 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
     }
 
     @Override
-    public void showGame(
-        final GameSnapshot snapshot,
-        final String turnText,
-        final String abilitiesText,
-        final String ownBoardTitle,
-        final String opponentBoardTitle,
-        final List<Coordinate> pendingTargets
-    ) {
-        this.turnLabel.setText(turnText);
-        this.abilitiesLabel.setText(abilitiesText);
-        this.ownTitle.setText(ownBoardTitle);
-        this.opponentTitle.setText(opponentBoardTitle);
-        this.renderBoard(this.ownGrid, snapshot.ownBoard(), false, List.of(), snapshot.phase());
-        this.renderBoard(this.opponentGrid, snapshot.opponentBoard(), true, pendingTargets, snapshot.phase());
+    public void showGame(final GameViewState state) {
+        final GameSnapshot snapshot = state.snapshot();
+        final PlayerId viewer = snapshot.viewer();
+
+        this.turnLabel.setText(
+                "Turn: " + state.harborNames().get(
+                        snapshot.currentPlayer()));
+
+        this.abilitiesLabel.setText(
+                SwingText.abilities(snapshot));
+
+        this.ownTitle.setText(
+                "Your board — " + state.harborNames().get(viewer));
+
+        this.opponentTitle.setText(
+                "Opponent — "
+                        + state.harborNames().get(viewer.other()));
+
+        this.renderBoard(
+                this.ownGrid,
+                snapshot.ownBoard(),
+                false,
+                List.of(),
+                snapshot.phase());
+
+        this.renderBoard(
+                this.opponentGrid,
+                snapshot.opponentBoard(),
+                true,
+                state.pendingTargets(),
+                snapshot.phase());
+
         this.cards.show(this.root, GAME_CARD);
-    }
-
-    @Override
-    public void appendLog(final String text) {
-        this.logArea.append(text + System.lineSeparator());
-        this.logArea.setCaretPosition(this.logArea.getDocument().getLength());
-    }
-
-    @Override
-    public void showInfo(final String title, final String message) {
-        JOptionPane.showMessageDialog(this, message, title, JOptionPane.INFORMATION_MESSAGE);
-    }
-
-    @Override
-    public void showWarning(final String message) {
-        JOptionPane.showMessageDialog(this, message, "Game Rule", JOptionPane.WARNING_MESSAGE);
     }
 
     @Override
@@ -230,11 +233,10 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
     private JPanel buildSetupPanel() {
         final JPanel panel = new JPanel(new GridBagLayout());
         panel.setBorder(BorderFactory.createEmptyBorder(
-            SETUP_PADDING,
-            SETUP_PADDING,
-            SETUP_PADDING,
-            SETUP_PADDING
-        ));
+                SETUP_PADDING,
+                SETUP_PADDING,
+                SETUP_PADDING,
+                SETUP_PADDING));
         final GridBagConstraints constraints = new GridBagConstraints();
         constraints.gridx = 0;
         constraints.gridwidth = 2;
@@ -248,9 +250,8 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
         panel.add(title, constraints);
 
         final JLabel intro = new JLabel(
-            "Local two-player game. Each player places their own fleet before the battle.",
-            JLabel.CENTER
-        );
+                "Local two-player game. Each player places their own fleet before the battle.",
+                JLabel.CENTER);
         constraints.gridy = 1;
         panel.add(intro, constraints);
 
@@ -281,11 +282,10 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
         constraints.gridy = gridy;
         constraints.gridwidth = 2;
         constraints.insets = new Insets(
-            START_BUTTON_TOP_MARGIN,
-            8,
-            8,
-            8
-        );
+                START_BUTTON_TOP_MARGIN,
+                8,
+                8,
+                8);
         panel.add(start, constraints);
         return panel;
     }
@@ -293,11 +293,10 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
     private JPanel buildPlacementPanel() {
         final JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(
-            PLACEMENT_PADDING,
-            PLACEMENT_PADDING,
-            PLACEMENT_PADDING,
-            PLACEMENT_PADDING
-        ));
+                PLACEMENT_PADDING,
+                PLACEMENT_PADDING,
+                PLACEMENT_PADDING,
+                PLACEMENT_PADDING));
         this.placementTitle.setFont(this.placementTitle.getFont().deriveFont(Font.BOLD, TURN_FONT_SIZE));
         this.placementTitle.setForeground(NAVY);
         panel.add(this.placementTitle, BorderLayout.NORTH);
@@ -365,11 +364,10 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
         controls.add(actionControls, BorderLayout.NORTH);
         controls.add(new JScrollPane(this.logArea), BorderLayout.CENTER);
         controls.add(new JLabel(
-            "<html>Owner's fleet: A Flagship · B Battleship · C Cruiser · S Submarine · "
-                + "D Destroyer · R Recon · X Armored<br>✕ hit · • miss · sunk · "
-                + "Shield: first hit absorbed</html>",
-            JLabel.CENTER
-        ), BorderLayout.SOUTH);
+                "<html>Owner's fleet: A Flagship · B Battleship · C Cruiser · S Submarine · "
+                        + "D Destroyer · R Recon · X Armored<br>✕ hit · • miss · sunk · "
+                        + "Shield: first hit absorbed</html>",
+                JLabel.CENTER), BorderLayout.SOUTH);
         gamePanel.add(controls, BorderLayout.SOUTH);
 
         this.actionMode.addActionListener(event -> {
@@ -420,9 +418,8 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
             for (int column = 0; column < BOARD_SIZE; column++) {
                 final Coordinate coordinate = new Coordinate(row, column);
                 final JButton cell = BoardCells.create(
-                    snapshot.stateAt(coordinate),
-                    snapshot.shipTypeAt(coordinate).orElse(null)
-                );
+                        snapshot.stateAt(coordinate),
+                        snapshot.shipTypeAt(coordinate).orElse(null));
                 cell.addActionListener(event -> this.placeSelectedShip(coordinate));
                 this.placementGrid.add(cell);
             }
@@ -444,8 +441,7 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
 
             if (quantity > 0) {
                 this.placementShip.addItem(
-                    new PlacementOption(type, quantity)
-                );
+                        new PlacementOption(type, quantity));
             }
         }
     }
@@ -460,12 +456,11 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
     }
 
     private void renderBoard(
-        final JPanel panel,
-        final BoardSnapshot snapshot,
-        final boolean interactive,
-        final List<Coordinate> pendingTargets,
-        final GamePhase phase
-    ) {
+            final JPanel panel,
+            final BoardSnapshot snapshot,
+            final boolean interactive,
+            final List<Coordinate> pendingTargets,
+            final GamePhase phase) {
         panel.removeAll();
         panel.setLayout(new GridLayout(BOARD_SIZE + 1, BOARD_SIZE + 1, 1, 1));
         panel.add(new JLabel("", JLabel.CENTER));
@@ -477,9 +472,8 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
             for (int column = 0; column < BOARD_SIZE; column++) {
                 final Coordinate coordinate = new Coordinate(row, column);
                 final JButton cell = BoardCells.create(
-                    snapshot.stateAt(coordinate),
-                    snapshot.shipTypeAt(coordinate).orElse(null)
-                );
+                        snapshot.stateAt(coordinate),
+                        snapshot.shipTypeAt(coordinate).orElse(null));
                 if (interactive && phase == GamePhase.IN_PROGRESS) {
                     cell.addActionListener(event -> this.handleTarget(coordinate));
                 } else {
@@ -508,18 +502,134 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
                 this.observer.onDoubleShotTargetSelected(coordinate);
             case SEQUENTIAL ->
                 this.observer.onSequentialShotRequested(
-                    coordinate,
-                    selectedDirection
-                );
+                        coordinate,
+                        selectedDirection);
             case SONAR ->
                 this.observer.onSonarRequested(coordinate);
+        }
+    }
+
+    @Override
+    public void appendGameStarted(
+            final String firstHarborName) {
+        this.appendLogLine(
+                "Fleets deployed. First move: " + firstHarborName + ".");
+    }
+
+    @Override
+    public void appendDoubleTargetSelected(
+            final Coordinate target) {
+        this.appendLogLine(
+                "First Double Shot target selected: "
+                        + SwingText.coordinate(target)
+                        + ".");
+    }
+
+    @Override
+    public void appendTurnResult(
+            final String harborName,
+            final ShotKind kind,
+            final TurnResult result) {
+        this.appendLogLine(
+                harborName + ": " + SwingText.action(kind) + ".");
+
+        result.shots().forEach(shot -> this.appendLogLine(
+                "  "
+                        + SwingText.coordinate(shot.target())
+                        + " — "
+                        + SwingText.outcome(shot.outcome())));
+    }
+
+    @Override
+    public void appendSonarResult(
+            final String harborName,
+            final SonarResult result) {
+        this.appendLogLine(
+                harborName
+                        + ": Sonar at "
+                        + SwingText.coordinate(result.center())
+                        + " — detected ship cells: "
+                        + result.detectedCells()
+                        + ".");
+    }
+
+    @Override
+    public void showRuleViolation(
+            final RuleViolation violation) {
+        final String message = SwingText.violation(violation);
+
+        this.appendLogLine(
+                "Action rejected: " + message);
+
+        JOptionPane.showMessageDialog(
+                this,
+                message,
+                "Game rule",
+                JOptionPane.WARNING_MESSAGE);
+    }
+
+    private void appendLogLine(final String text) {
+        this.logArea.append(text + System.lineSeparator());
+        this.logArea.setCaretPosition(
+                this.logArea.getDocument().getLength());
+    }
+
+    @Override
+    public void appendRandomEvent(
+            final Optional<RandomEventResult> result,
+            final Map<PlayerId, String> harborNames) {
+        this.appendLogLine(
+                SwingText.randomEvent(result, harborNames));
+    }
+
+    /**
+     * Renders rotations using user-friendly degree labels.
+     */
+    private static final class RotationRenderer extends DefaultListCellRenderer {
+
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public Component getListCellRendererComponent(
+                final JList<?> list,
+                final Object value,
+                final int index,
+                final boolean isSelected,
+                final boolean cellHasFocus) {
+            final JLabel label = (JLabel) super.getListCellRendererComponent(
+                    list,
+                    value,
+                    index,
+                    isSelected,
+                    cellHasFocus);
+
+            if (value instanceof Rotation rotation) {
+                label.setText(rotationLabel(rotation));
+            }
+
+            return label;
+        }
+
+        /**
+         * Tells the angle of a determined rotation.
+         *
+         * @param rotation the selected rotation
+         * @return the angle of that rotation
+         */
+        private static String rotationLabel(final Rotation rotation) {
+            return switch (rotation) {
+                case DEGREES_0 -> "0°";
+                case DEGREES_90 -> "90°";
+                case DEGREES_180 -> "180°";
+                case DEGREES_270 -> "270°";
+            };
         }
     }
 
     /**
      * One ship type displayed in the placement selector.
      *
-     * @param type ship type
+     * @param type     ship type
      * @param quantity required quantity
      */
     private record PlacementOption(ShipType type, int quantity) {
@@ -528,8 +638,7 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
 
             if (quantity <= 0) {
                 throw new IllegalArgumentException(
-                    "Quantity must be positive"
-                );
+                        "Quantity must be positive");
             }
         }
 
@@ -547,52 +656,6 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
                 case DESTROYER -> "Destroyer";
                 case RECON -> "Recon ship";
                 case ARMORED_SHIP -> "Armored ship";
-            };
-        }
-    }
-
-    /**
-     * Renders rotations using user-friendly degree labels.
-     */
-    private static final class RotationRenderer extends DefaultListCellRenderer {
-
-        private static final long serialVersionUID = 1L;
-
-        @Override
-        public Component getListCellRendererComponent(
-            final JList<?> list,
-            final Object value,
-            final int index,
-            final boolean isSelected,
-            final boolean cellHasFocus
-        ) {
-            final JLabel label = (JLabel) super.getListCellRendererComponent(
-                list,
-                value,
-                index,
-                isSelected,
-                cellHasFocus
-            );
-
-            if (value instanceof Rotation rotation) {
-                label.setText(rotationLabel(rotation));
-            }
-
-            return label;
-        }
-
-        /**
-         * Tells the angle of a determined rotation.
-         * 
-         * @param rotation the selected rotation
-         * @return the angle of that rotation
-         */
-        private static String rotationLabel(final Rotation rotation) {
-            return switch (rotation) {
-                case DEGREES_0 -> "0°";
-                case DEGREES_90 -> "90°";
-                case DEGREES_180 -> "180°";
-                case DEGREES_270 -> "270°";
             };
         }
     }
