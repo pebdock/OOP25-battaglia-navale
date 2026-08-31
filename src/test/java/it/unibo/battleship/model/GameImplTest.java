@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import it.unibo.battleship.model.shot.DoubleShotStrategy;
 import it.unibo.battleship.model.shot.NormalShotStrategy;
+import it.unibo.battleship.model.shot.SequentialShotStrategy;
 import it.unibo.battleship.model.shot.ShotStrategy;
 import it.unibo.battleship.model.visibility.InvisibleSubmarinePolicy;
 import it.unibo.battleship.model.visibility.OwnerOnlyVisibilityPolicy;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.EnumMap;
 
 /**
  * Tests the main game rules in GameImpl.
@@ -91,7 +93,8 @@ class GameImplTest {
             new Player(PlayerId.PLAYER2, board2),
             Map.of(
                 ShotKind.NORMAL, new NormalShotStrategy(),
-                ShotKind.DOUBLE, new DoubleShotStrategy()
+                ShotKind.DOUBLE, new DoubleShotStrategy(),
+                ShotKind.SEQUENTIAL, new SequentialShotStrategy()
             ),
             new InvisibleSubmarinePolicy(new OwnerOnlyVisibilityPolicy())
         );
@@ -201,10 +204,9 @@ class GameImplTest {
         );
 
         final Map<ShotKind, ShotStrategy> strategies = Map.of(
-            ShotKind.NORMAL,
-            new NormalShotStrategy(),
-            ShotKind.DOUBLE,
-            new DoubleShotStrategy()
+            ShotKind.NORMAL, new NormalShotStrategy(),
+            ShotKind.DOUBLE, new DoubleShotStrategy(),
+            ShotKind.SEQUENTIAL, new SequentialShotStrategy()
         );
 
         assertThrows(
@@ -221,6 +223,43 @@ class GameImplTest {
     }
 
     /**
+     * Verifies that every shot kind requires an explicit strategy.
+     */
+    @Test
+    void rejectsEveryMissingShotStrategy() {
+        final FleetRules rules = FleetRules.classic();
+
+        for (final ShotKind missing : ShotKind.values()) {
+            final Map<ShotKind, ShotStrategy> strategies =
+                mutableStandardStrategies();
+            strategies.remove(missing);
+
+            final NullPointerException exception = assertThrows(
+                NullPointerException.class,
+                () -> new GameImpl(
+                    new Player(
+                        PlayerId.PLAYER1,
+                        new BoardImpl(BoardImpl.REQUIRED_SIZE, rules)
+                    ),
+                    new Player(
+                        PlayerId.PLAYER2,
+                        new BoardImpl(BoardImpl.REQUIRED_SIZE, rules)
+                    ),
+                    strategies,
+                    new InvisibleSubmarinePolicy(
+                        new OwnerOnlyVisibilityPolicy()
+                    )
+                )
+            );
+
+            assertEquals(
+                "Missing strategy for " + missing,
+                exception.getMessage()
+            );
+        }
+    }
+
+    /**
      * Creates a game with 2 complete fleets.
      * 
      * @return the union containing the game and the second player's ship cells
@@ -234,7 +273,8 @@ class GameImplTest {
         final Player p2 = new Player(PlayerId.PLAYER2, board2);
         final Map<ShotKind, ShotStrategy> strategies = Map.of(
             ShotKind.NORMAL, new NormalShotStrategy(),
-            ShotKind.DOUBLE, new DoubleShotStrategy()
+            ShotKind.DOUBLE, new DoubleShotStrategy(),
+            ShotKind.SEQUENTIAL, new SequentialShotStrategy()
         );
 
         return new Complete(
@@ -297,6 +337,31 @@ class GameImplTest {
         );
         board.placeShip(ship);
         cells.addAll(ship.cells());
+    }
+
+    /**
+     * Factory for test's maps.
+     * 
+     * @return map
+     */
+    private static Map<ShotKind, ShotStrategy> mutableStandardStrategies() {
+        final Map<ShotKind, ShotStrategy> strategies =
+            new EnumMap<>(ShotKind.class);
+
+        strategies.put(
+            ShotKind.NORMAL,
+            new NormalShotStrategy()
+        );
+        strategies.put(
+            ShotKind.DOUBLE,
+            new DoubleShotStrategy()
+        );
+        strategies.put(
+            ShotKind.SEQUENTIAL,
+            new SequentialShotStrategy()
+        );
+
+        return strategies;
     }
 
     /**

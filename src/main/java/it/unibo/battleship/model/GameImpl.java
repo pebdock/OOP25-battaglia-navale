@@ -1,7 +1,6 @@
 package it.unibo.battleship.model;
 
 import it.unibo.battleship.model.shot.ShotStrategy;
-import it.unibo.battleship.model.shot.SequentialShotStrategy;
 import it.unibo.battleship.model.visibility.ShipVisibilityPolicy;
 
 import java.util.EnumMap;
@@ -67,13 +66,10 @@ public final class GameImpl implements Game {
         this.addPlayer(checkedPlayer2);
         Objects.requireNonNull(strategies, "strategies");
         for (final ShotKind kind : ShotKind.values()) {
-            ShotStrategy strategy = strategies.get(kind);
-            if (strategy == null && kind == ShotKind.SEQUENTIAL) {
-                strategy = new SequentialShotStrategy();
-            }
-            if (strategy == null) {
-                throw new IllegalArgumentException("Missing strategy for " + kind);
-            }
+            final ShotStrategy strategy = Objects.requireNonNull(
+                strategies.get(kind),
+                "Missing strategy for " + kind
+            );
             this.strategies.put(kind, strategy);
         }
         this.visibilityPolicy = Objects.requireNonNull(visibilityPolicy, "visibilityPolicy");

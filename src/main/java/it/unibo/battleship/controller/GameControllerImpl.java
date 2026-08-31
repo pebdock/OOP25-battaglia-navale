@@ -1,16 +1,16 @@
 package it.unibo.battleship.controller;
 
+import it.unibo.battleship.model.factory.GameFactory;
+import it.unibo.battleship.model.factory.StandardGameFactory;
 import it.unibo.battleship.model.Board;
 import it.unibo.battleship.model.BoardImpl;
 import it.unibo.battleship.model.BoardSnapshot;
 import it.unibo.battleship.model.Coordinate;
 import it.unibo.battleship.model.DoubleShotStatus;
 import it.unibo.battleship.model.Game;
-import it.unibo.battleship.model.GameImpl;
 import it.unibo.battleship.model.GamePhase;
 import it.unibo.battleship.model.GameRuleException;
 import it.unibo.battleship.model.GameSnapshot;
-import it.unibo.battleship.model.Player;
 import it.unibo.battleship.model.PlayerId;
 import it.unibo.battleship.model.RandomEventResult;
 import it.unibo.battleship.model.Rotation;
@@ -23,11 +23,6 @@ import it.unibo.battleship.model.ShotOutcome;
 import it.unibo.battleship.model.ShotResult;
 import it.unibo.battleship.model.SonarResult;
 import it.unibo.battleship.model.TurnResult;
-import it.unibo.battleship.model.shot.DoubleShotStrategy;
-import it.unibo.battleship.model.shot.NormalShotStrategy;
-import it.unibo.battleship.model.shot.SequentialShotStrategy;
-import it.unibo.battleship.model.shot.ShotStrategy;
-import it.unibo.battleship.model.visibility.InvisibleSubmarinePolicy;
 import it.unibo.battleship.model.visibility.OwnerOnlyVisibilityPolicy;
 import it.unibo.battleship.view.BattleshipView;
 import it.unibo.battleship.model.FleetRules;
@@ -52,12 +47,32 @@ public final class GameControllerImpl implements GameController {
     private final Map<PlayerId, String> harborNames = new EnumMap<>(PlayerId.class);
     private final Map<PlayerId, Board> placementBoards = new EnumMap<>(PlayerId.class);
     private final Map<PlayerId, Map<ShipType, Integer>> placementCounts = new EnumMap<>(PlayerId.class);
+    private final GameFactory gameFactory;
 
     private BattleshipView view;
     private Game game;
     private PlayerId placingPlayer = PlayerId.PLAYER1;
     private RandomGenerator setupRandom;
     private FleetRules placementRules;
+
+    /**
+     * Creates a controller using the standard game configuration.
+     */
+    public GameControllerImpl() {
+        this(new StandardGameFactory());
+    }
+
+    /**
+     * Creates a controller with an injectable game factory.
+     *
+     * @param gameFactory factory used to create matches
+     */
+    public GameControllerImpl(final GameFactory gameFactory) {
+        this.gameFactory = Objects.requireNonNull(
+            gameFactory,
+            "gameFactory"
+        );
+    }
 
     @Override
     public void attachView(final BattleshipView attachedView) {
@@ -221,7 +236,7 @@ public final class GameControllerImpl implements GameController {
     ) {
         Objects.requireNonNull(random, "random");
         this.view.stopRandomEventTimer();
-        this.game = createGame(firstBoard, secondBoard, random);
+        this.game = this.gameFactory.create(firstBoard, secondBoard, random);
         this.harborNames.clear();
         this.harborNames.put(PlayerId.PLAYER1, first);
         this.harborNames.put(PlayerId.PLAYER2, second);
@@ -372,25 +387,6 @@ public final class GameControllerImpl implements GameController {
         if (this.view == null) {
             throw new IllegalStateException("The view has not been attached");
         }
-    }
-
-    private static Game createGame(
-        final Board firstBoard,
-        final Board secondBoard,
-        final RandomGenerator random
-    ) {
-        final Map<ShotKind, ShotStrategy> strategies = Map.of(
-            ShotKind.NORMAL, new NormalShotStrategy(),
-            ShotKind.DOUBLE, new DoubleShotStrategy(),
-            ShotKind.SEQUENTIAL, new SequentialShotStrategy()
-        );
-        return new GameImpl(
-            new Player(PlayerId.PLAYER1, firstBoard),
-            new Player(PlayerId.PLAYER2, secondBoard),
-            strategies,
-            new InvisibleSubmarinePolicy(new OwnerOnlyVisibilityPolicy()),
-            random
-        );
     }
 
     private static String formatAbilities(final GameSnapshot snapshot) {
