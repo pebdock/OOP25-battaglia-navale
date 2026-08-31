@@ -1,4 +1,4 @@
-package it.unibo.battleship.controller;
+package it.unibo.battleship.view;
 
 /**
  * Cardinal direction used to build a sequential shot.

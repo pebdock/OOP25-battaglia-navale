@@ -1,6 +1,5 @@
 package it.unibo.battleship.view;
 
-import it.unibo.battleship.controller.GameController;
 import it.unibo.battleship.model.BoardSnapshot;
 import it.unibo.battleship.model.Coordinate;
 import it.unibo.battleship.model.GameSnapshot;
@@ -14,11 +13,11 @@ import java.util.List;
 public interface BattleshipView {
 
     /**
-     * Connects the view to the controller that handles user actions.
+     * Connects the observer that receives user actions.
      *
-     * @param controller the controller
+     * @param observer observer receiving view events
      */
-    void setController(GameController controller);
+    void setObserver(BattleshipViewObserver observer);
 
     /**
      * Shows the harbor-name setup screen.

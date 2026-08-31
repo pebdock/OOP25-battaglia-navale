@@ -1,9 +1,6 @@
 package it.unibo.battleship.view;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import it.unibo.battleship.controller.ActionMode;
-import it.unibo.battleship.controller.GameController;
-import it.unibo.battleship.controller.ShotDirection;
 import it.unibo.battleship.model.BoardSnapshot;
 import it.unibo.battleship.model.Coordinate;
 import it.unibo.battleship.model.GamePhase;
@@ -29,7 +26,6 @@ import javax.swing.JTextField;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JList;
 import javax.swing.Timer;
-import javax.swing.UIManager;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
@@ -100,7 +96,7 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
     private final JLabel placementStatus = new JLabel(" ", JLabel.CENTER);
     private transient FleetRules displayedFleetRules;
 
-    private transient GameController controller;
+    private transient BattleshipViewObserver observer;
     private Timer randomEventTimer;
 
     /**
@@ -109,7 +105,6 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
     public BattleshipFrame() {
         super(APPLICATION_TITLE);
         this.placementRotation.setRenderer(new RotationRenderer());
-        this.applySystemLookAndFeel();
         this.setDefaultCloseOperation(EXIT_ON_CLOSE);
         this.setMinimumSize(new Dimension(MINIMUM_WIDTH, MINIMUM_HEIGHT));
         this.root.add(this.buildSetupPanel(), SETUP_CARD);
@@ -123,8 +118,10 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
     }
 
     @Override
-    public void setController(final GameController controller) {
-        this.controller = Objects.requireNonNull(controller, "controller");
+    public void setObserver(
+        final BattleshipViewObserver observer
+    ) {
+        this.observer = Objects.requireNonNull(observer, "observer");
     }
 
     @Override
@@ -214,8 +211,8 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
     public void startRandomEventTimer() {
         this.stopRandomEventTimer();
         this.randomEventTimer = new Timer(RANDOM_EVENT_DELAY_MS, event -> {
-            if (this.controller != null) {
-                this.controller.onRandomEventTick();
+            if (this.observer != null) {
+                this.observer.onRandomEventElapsed();
             }
         });
         this.randomEventTimer.setRepeats(true);
@@ -315,10 +312,10 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
         controls.add(new JLabel("Rotation:"));
         controls.add(this.placementRotation);
         controls.add(Box.createVerticalStrut(PLACEMENT_CONFIRM_GAP));
-        this.resetFleet.addActionListener(event -> this.controller.resetCurrentFleet());
+        this.resetFleet.addActionListener(event -> this.observer.onFleetResetRequested());
         controls.add(this.resetFleet);
         controls.add(Box.createVerticalStrut(PLACEMENT_SECTION_GAP));
-        this.confirmFleet.addActionListener(event -> this.controller.confirmCurrentFleet());
+        this.confirmFleet.addActionListener(event -> this.observer.onFleetConfirmed());
         controls.add(this.confirmFleet);
         controls.add(Box.createVerticalStrut(PLACEMENT_HINT_GAP));
         controls.add(new JLabel("Click the first cell of the selected ship."));
@@ -363,7 +360,7 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
         actionControls.add(new JLabel("Direction:"));
         actionControls.add(this.direction);
         final JButton restart = new JButton("New Game");
-        restart.addActionListener(event -> this.controller.returnToSetup());
+        restart.addActionListener(event -> this.observer.onNewGameRequested());
         actionControls.add(restart);
         controls.add(actionControls, BorderLayout.NORTH);
         controls.add(new JScrollPane(this.logArea), BorderLayout.CENTER);
@@ -377,8 +374,8 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
 
         this.actionMode.addActionListener(event -> {
             this.direction.setEnabled(this.actionMode.getSelectedItem() == ActionMode.SEQUENTIAL);
-            if (this.controller != null) {
-                this.controller.actionModeChanged();
+            if (this.observer != null) {
+                this.observer.onActionSelectionChanged();
             }
         });
         this.direction.setEnabled(false);
@@ -408,7 +405,7 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
             JOptionPane.showMessageDialog(this, "Enter the names of both harbors.");
             return;
         }
-        this.controller.startPlacement(first, second, this.includeArmoredShip.isSelected());
+        this.observer.onSetupSubmitted(first, second, this.includeArmoredShip.isSelected());
     }
 
     private void renderPlacementBoard(final BoardSnapshot snapshot) {
@@ -459,7 +456,7 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
         if (selected == null || selectedRotation == null) {
             return;
         }
-        this.controller.placeShip(origin, selected.type(), selectedRotation);
+        this.observer.onShipPlacementRequested(origin, selected.type(), selectedRotation);
     }
 
     private void renderBoard(
@@ -504,14 +501,18 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
             return;
         }
         final ShotDirection selectedDirection = (ShotDirection) this.direction.getSelectedItem();
-        this.controller.handleTarget(coordinate, mode, selectedDirection);
-    }
-
-    private void applySystemLookAndFeel() {
-        try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (final ReflectiveOperationException | javax.swing.UnsupportedLookAndFeelException ignored) {
-            // The portable Metal look and feel remains available.
+        switch (mode) {
+            case NORMAL ->
+                this.observer.onNormalShotRequested(coordinate);
+            case DOUBLE ->
+                this.observer.onDoubleShotTargetSelected(coordinate);
+            case SEQUENTIAL ->
+                this.observer.onSequentialShotRequested(
+                    coordinate,
+                    selectedDirection
+                );
+            case SONAR ->
+                this.observer.onSonarRequested(coordinate);
         }
     }
 

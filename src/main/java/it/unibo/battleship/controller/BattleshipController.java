@@ -1,7 +1,6 @@
 package it.unibo.battleship.controller;
 
 import it.unibo.battleship.model.factory.GameFactory;
-import it.unibo.battleship.model.factory.StandardGameFactory;
 import it.unibo.battleship.model.Board;
 import it.unibo.battleship.model.BoardImpl;
 import it.unibo.battleship.model.BoardSnapshot;
@@ -26,6 +25,8 @@ import it.unibo.battleship.model.TurnResult;
 import it.unibo.battleship.model.visibility.OwnerOnlyVisibilityPolicy;
 import it.unibo.battleship.view.BattleshipView;
 import it.unibo.battleship.model.FleetRules;
+import it.unibo.battleship.view.BattleshipViewObserver;
+import it.unibo.battleship.view.ShotDirection;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -33,13 +34,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Random;
 import java.util.random.RandomGenerator;
 
 /**
  * Owns match and placement state and updates the view after each model change.
  */
-public final class GameControllerImpl implements GameController {
+public final class BattleshipController implements BattleshipViewObserver {
 
     private static final int SEQUENTIAL_LENGTH = 3;
 
@@ -47,42 +47,36 @@ public final class GameControllerImpl implements GameController {
     private final Map<PlayerId, String> harborNames = new EnumMap<>(PlayerId.class);
     private final Map<PlayerId, Board> placementBoards = new EnumMap<>(PlayerId.class);
     private final Map<PlayerId, Map<ShipType, Integer>> placementCounts = new EnumMap<>(PlayerId.class);
+    private final BattleshipView view;
     private final GameFactory gameFactory;
+    private final RandomGenerator random;
 
-    private BattleshipView view;
     private Game game;
     private PlayerId placingPlayer = PlayerId.PLAYER1;
-    private RandomGenerator setupRandom;
     private FleetRules placementRules;
 
     /**
-     * Creates a controller using the standard game configuration.
-     */
-    public GameControllerImpl() {
-        this(new StandardGameFactory());
-    }
-
-    /**
-     * Creates a controller with an injectable game factory.
+     * Coordinates one view and the game model using injected collaborators.
      *
-     * @param gameFactory factory used to create matches
+     * @param view view receiving presentation updates
+     * @param gameFactory factory used to create configured games
+     * @param random random source used by the session
      */
-    public GameControllerImpl(final GameFactory gameFactory) {
+    public BattleshipController(
+        final BattleshipView view,
+        final GameFactory gameFactory,
+        final RandomGenerator random
+    ) {
+        this.view = Objects.requireNonNull(view, "view");
         this.gameFactory = Objects.requireNonNull(
             gameFactory,
             "gameFactory"
         );
+        this.random = Objects.requireNonNull(random, "random");
     }
 
     @Override
-    public void attachView(final BattleshipView attachedView) {
-        this.view = Objects.requireNonNull(attachedView, "view");
-        this.view.setController(this);
-    }
-
-    @Override
-    public void startPlacement(final String firstHarbor, final String secondHarbor, final boolean useArmoredShip) {
-        this.requireView();
+    public void onSetupSubmitted(final String firstHarbor, final String secondHarbor, final boolean useArmoredShip) {
         this.resetSession();
         this.placementRules = useArmoredShip
             ? FleetRules.withArmoredShip()
@@ -93,13 +87,11 @@ public final class GameControllerImpl implements GameController {
         this.placementBoards.put(PlayerId.PLAYER2, new BoardImpl(BoardImpl.REQUIRED_SIZE, this.placementRules));
         this.placementCounts.put(PlayerId.PLAYER1, new EnumMap<>(ShipType.class));
         this.placementCounts.put(PlayerId.PLAYER2, new EnumMap<>(ShipType.class));
-        this.setupRandom = new Random();
         this.beginPlacement(PlayerId.PLAYER1, "Select a ship, choose its rotation, then click its first cell.");
     }
 
     @Override
-    public void placeShip(final Coordinate origin, final ShipType type, final Rotation rotation) {
-        this.requireView();
+    public void onShipPlacementRequested(final Coordinate origin, final ShipType type, final Rotation rotation) {
         Objects.requireNonNull(origin, "origin");
         Objects.requireNonNull(type, "type");
         Objects.requireNonNull(rotation, "rotation");
@@ -128,16 +120,14 @@ public final class GameControllerImpl implements GameController {
     }
 
     @Override
-    public void resetCurrentFleet() {
-        this.requireView();
+    public void onFleetResetRequested() {
         this.placementBoards.put(this.placingPlayer, new BoardImpl(BoardImpl.REQUIRED_SIZE, this.placementRules));
         this.placementCounts.put(this.placingPlayer, new EnumMap<>(ShipType.class));
         this.refreshPlacement("The fleet has been reset. Place the ships again.");
     }
 
     @Override
-    public void confirmCurrentFleet() {
-        this.requireView();
+    public void onFleetConfirmed() {
         if (!this.placementBoards.get(this.placingPlayer).hasCompleteFleet()) {
             this.refreshPlacement("Place all ships before confirming the fleet.");
             return;
@@ -150,33 +140,59 @@ public final class GameControllerImpl implements GameController {
             return;
         }
         this.startGame(
-            this.harborNames.get(PlayerId.PLAYER1),
-            this.harborNames.get(PlayerId.PLAYER2),
             this.placementBoards.get(PlayerId.PLAYER1),
-            this.placementBoards.get(PlayerId.PLAYER2),
-            this.setupRandom
+            this.placementBoards.get(PlayerId.PLAYER2)
         );
     }
 
     @Override
-    public void handleTarget(final Coordinate target, final ActionMode mode, final ShotDirection direction) {
-        this.requireView();
-        if (this.game == null || this.game.phase() != GamePhase.IN_PROGRESS) {
-            return;
-        }
-        Objects.requireNonNull(target, "target");
-        Objects.requireNonNull(mode, "mode");
-        final GameSnapshot snapshot = this.game.snapshotFor(this.game.currentPlayer());
-        switch (mode) {
-            case NORMAL -> this.performShot(ShotKind.NORMAL, List.of(target));
-            case DOUBLE -> this.selectDoubleTarget(target, snapshot);
-            case SEQUENTIAL -> this.performSequentialShot(target, direction, snapshot);
-            case SONAR -> this.performSonar(target, snapshot);
+    public void onNormalShotRequested(final Coordinate target) {
+        if (this.isGameRunning()) {
+            this.performShot(ShotKind.NORMAL, List.of(target));
         }
     }
 
     @Override
-    public void actionModeChanged() {
+    public void onDoubleShotTargetSelected(final Coordinate target) {
+        if (this.isGameRunning()) {
+            this.selectDoubleTarget(
+                target,
+                this.game.snapshotFor(this.game.currentPlayer())
+            );
+        }
+    }
+
+    @Override
+    public void onSequentialShotRequested(
+        final Coordinate start,
+        final ShotDirection direction
+    ) {
+        if (this.isGameRunning()) {
+            this.performSequentialShot(
+                start,
+                direction,
+                this.game.snapshotFor(this.game.currentPlayer())
+            );
+        }
+    }
+
+    @Override
+    public void onSonarRequested(final Coordinate center) {
+        if (this.isGameRunning()) {
+            this.performSonar(
+                center,
+                this.game.snapshotFor(this.game.currentPlayer())
+            );
+        }
+    }
+
+    private boolean isGameRunning() {
+        return this.game != null
+            && this.game.phase() == GamePhase.IN_PROGRESS;
+    }
+
+    @Override
+    public void onActionSelectionChanged() {
         this.pendingTargets.clear();
         if (this.game != null) {
             this.refreshGame();
@@ -184,14 +200,13 @@ public final class GameControllerImpl implements GameController {
     }
 
     @Override
-    public void returnToSetup() {
-        this.requireView();
+    public void onNewGameRequested() {
         this.resetSession();
         this.view.showSetup();
     }
 
     @Override
-    public void onRandomEventTick() {
+    public void onRandomEventElapsed() {
         if (this.view == null || this.game == null || this.game.phase() != GamePhase.IN_PROGRESS) {
             return;
         }
@@ -228,24 +243,15 @@ public final class GameControllerImpl implements GameController {
     }
 
     private void startGame(
-        final String first,
-        final String second,
         final Board firstBoard,
-        final Board secondBoard,
-        final RandomGenerator random
+        final Board secondBoard
     ) {
-        Objects.requireNonNull(random, "random");
         this.view.stopRandomEventTimer();
-        this.game = this.gameFactory.create(firstBoard, secondBoard, random);
-        this.harborNames.clear();
-        this.harborNames.put(PlayerId.PLAYER1, first);
-        this.harborNames.put(PlayerId.PLAYER2, second);
-        this.pendingTargets.clear();
-        this.view.clearLog();
-        this.game.start();
-        this.view.appendLog("Fleets deployed. First move: " + first + ".");
-        this.view.startRandomEventTimer();
-        this.refreshGame();
+        this.game = this.gameFactory.create(
+            firstBoard,
+            secondBoard,
+            this.random
+        );
     }
 
     private void refreshGame() {
@@ -379,14 +385,7 @@ public final class GameControllerImpl implements GameController {
         this.harborNames.clear();
         this.placementBoards.clear();
         this.placementCounts.clear();
-        this.setupRandom = null;
         this.placementRules = null;
-    }
-
-    private void requireView() {
-        if (this.view == null) {
-            throw new IllegalStateException("The view has not been attached");
-        }
     }
 
     private static String formatAbilities(final GameSnapshot snapshot) {

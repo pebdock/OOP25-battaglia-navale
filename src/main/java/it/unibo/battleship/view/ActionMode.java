@@ -1,4 +1,4 @@
-package it.unibo.battleship.controller;
+package it.unibo.battleship.view;
 
 /**
  * Player action selected in the battle screen.

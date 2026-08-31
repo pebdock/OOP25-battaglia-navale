@@ -1,14 +1,17 @@
 package it.unibo.battleship.model;
 
-import it.unibo.battleship.controller.GameController;
-import it.unibo.battleship.controller.GameControllerImpl;
+import it.unibo.battleship.controller.BattleshipController;
+import it.unibo.battleship.model.factory.StandardGameFactory;
 import it.unibo.battleship.view.BattleshipFrame;
+import it.unibo.battleship.view.BattleshipViewObserver;
+
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.SwingUtilities;
 import java.awt.GraphicsEnvironment;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -32,9 +35,13 @@ class BattleshipAppSmokeTest {
 
         SwingUtilities.invokeAndWait(() -> {
             final BattleshipFrame view = new BattleshipFrame();
-            final GameController controller = new GameControllerImpl();
+            final BattleshipViewObserver controller = new BattleshipController(
+                view,
+                new StandardGameFactory(),
+                new Random(42)
+            );
 
-            controller.attachView(view);
+            view.setObserver(controller);
             view.setVisible(true);
 
             assertTrue(view.isDisplayable());
