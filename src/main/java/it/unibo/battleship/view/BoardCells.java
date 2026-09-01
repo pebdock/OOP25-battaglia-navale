@@ -1,12 +1,14 @@
 package it.unibo.battleship.view;
 
 import it.unibo.battleship.model.CellState;
+import it.unibo.battleship.model.Coordinate;
 import it.unibo.battleship.model.ShipType;
 
 import javax.swing.JButton;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Insets;
+import java.util.Objects;
 
 /**
  * Builds coloured board cells from a snapshot state.
@@ -31,14 +33,20 @@ final class BoardCells {
 
     private BoardCells() { }
 
-    static JButton create(final CellState state, final ShipType shipType) {
+    static JButton create(final Coordinate coordinate, final CellState state, final ShipType shipType) {
+        Objects.requireNonNull(coordinate, "coordinate");
+        Objects.requireNonNull(state, "state");
         final JButton cell = new JButton(symbol(state, shipType));
         cell.setPreferredSize(new Dimension(CELL_SIZE, CELL_SIZE));
         cell.setMargin(new Insets(0, 0, 0, 0));
         cell.setOpaque(true);
         cell.setBackground(color(state, shipType));
         cell.setForeground(state == CellState.SHIP || state == CellState.SUNK ? Color.WHITE : NAVY);
-        cell.setToolTipText(stateDescription(state, shipType));
+        final String description = SwingText.coordinate(coordinate) + " - " + stateDescription(state, shipType);
+        cell.setToolTipText(description);
+        cell.getAccessibleContext().setAccessibleName(description);
+        cell.getAccessibleContext().setAccessibleDescription("Battleship board cell " + description);
+        cell.setFocusable(true);
         return cell;
     }
 
@@ -59,7 +67,7 @@ final class BoardCells {
             case SHIP -> "■";
             case HIT -> "✕";
             case MISS -> "•";
-            case SUNK -> "";
+            case SUNK -> "O";
         };
     }
 

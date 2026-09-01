@@ -13,7 +13,6 @@ import it.unibo.battleship.model.ShipType;
 import it.unibo.battleship.model.ShotKind;
 import it.unibo.battleship.model.SonarResult;
 import it.unibo.battleship.model.TurnResult;
-import it.unibo.battleship.model.FleetRules;
 
 import javax.swing.JCheckBox;
 import javax.swing.BorderFactory;
@@ -68,9 +67,11 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
     private static final int PLACEMENT_CONFIRM_GAP = 14;
     private static final int PLACEMENT_HINT_GAP = 12;
     private static final int HANDOFF_PADDING = 12;
-private static final int HANDOFF_BUTTON_TOP_MARGIN = 24;
+    private static final int HANDOFF_BUTTON_TOP_MARGIN = 24;
     private static final int START_BUTTON_TOP_MARGIN = 22;
     private static final float MAIN_TITLE_FONT_SIZE = 32F;
+    private static final int ARMORED_HINT_ROW = 5;
+    private static final int START_BUTTON_ROW = 6;
     private static final float TURN_FONT_SIZE = 18F;
     private static final float PRIVACY_FONT_SIZE = 28F;
     private static final float BOARD_TITLE_FONT_SIZE = 15F;
@@ -106,8 +107,9 @@ private static final int HANDOFF_BUTTON_TOP_MARGIN = 24;
     private final JButton confirmFleet = new JButton("Confirm fleet");
     private final JLabel placementTitle = new JLabel(" ", JLabel.CENTER);
     private final JLabel placementStatus = new JLabel(" ", JLabel.CENTER);
+    private final JLabel placementProgress = new JLabel(" ", JLabel.CENTER);
+    private final JLabel actionHint = new JLabel(" ", JLabel.CENTER);
 
-    private transient FleetRules displayedFleetRules;
     private transient BattleshipViewObserver observer;
     private Timer randomEventTimer;
 
@@ -147,17 +149,14 @@ private static final int HANDOFF_BUTTON_TOP_MARGIN = 24;
     }
 
     @Override
-    public void showPlacement(
-            final PlacementViewState state) {
-        this.placementTitle.setText(
-                "Fleet placement — " + state.harborName());
+    public void showPlacement(final PlacementViewState state) {
+        this.placementTitle.setText("Fleet placement - " + state.harborName());
 
-        this.placementStatus.setText(
-                SwingText.placementFeedback(state.feedback()));
+        this.placementStatus.setText(SwingText.placementFeedback(state.feedback()));
 
         this.confirmFleet.setEnabled(state.complete());
 
-        this.configurePlacementShips(state.rules());
+        this.configurePlacementShips(state);
         this.renderPlacementBoard(state.board());
         this.cards.show(this.root, PLACEMENT_CARD);
     }
@@ -301,14 +300,32 @@ private static final int HANDOFF_BUTTON_TOP_MARGIN = 24;
         constraints.gridy = 4;
         constraints.gridwidth = 2;
         constraints.insets = new Insets(8, 8, 8, 8);
+
+        this.includeArmoredShip.setToolTipText(
+            "Adds one armored ship to both fleets. "
+            + "Each section absorbs its first impact."
+        );
+        this.includeArmoredShip.getAccessibleContext()
+            .setAccessibleDescription(
+                "Include one armored ship in both equal fleets"
+            );
+
         panel.add(this.includeArmoredShip, constraints);
+
+        final JLabel armoredHint = new JLabel(
+            "Optional: adds one ship to both fleets; "
+            + "every section absorbs its first impact.",
+            JLabel.CENTER
+        );
+        constraints.gridy = ARMORED_HINT_ROW;
+        constraints.insets = new Insets(0, 8, 8, 8);
+        panel.add(armoredHint, constraints);
 
         final JButton start = new JButton("Place the fleets");
         start.addActionListener(event -> this.startFromForm());
 
         constraints.gridx = 0;
-        final int gridy = 5;
-        constraints.gridy = gridy;
+        constraints.gridy = START_BUTTON_ROW;
         constraints.gridwidth = 2;
         constraints.insets = new Insets(
                 START_BUTTON_TOP_MARGIN,
@@ -337,13 +354,27 @@ private static final int HANDOFF_BUTTON_TOP_MARGIN = 24;
         controls.add(new JLabel("Ship to place:"));
         controls.add(this.placementShip);
         controls.add(Box.createVerticalStrut(PLACEMENT_SECTION_GAP));
+        controls.add(this.placementProgress);
+        controls.add(Box.createVerticalStrut(PLACEMENT_SECTION_GAP));
         controls.add(new JLabel("Rotation:"));
         controls.add(this.placementRotation);
         controls.add(Box.createVerticalStrut(PLACEMENT_CONFIRM_GAP));
-        this.resetFleet.addActionListener(event -> this.observer.onFleetResetRequested());
+        this.resetFleet.addActionListener(event -> {
+            final int choice = JOptionPane.showConfirmDialog(
+                this,
+                "Remove every ship placed by this player?",
+                "Reset fleet",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE
+            );
+
+            if (choice == JOptionPane.YES_OPTION) {
+                this.requireObserver().onFleetResetRequested();
+            }
+        });
         controls.add(this.resetFleet);
         controls.add(Box.createVerticalStrut(PLACEMENT_SECTION_GAP));
-        this.confirmFleet.addActionListener(event -> this.observer.onFleetConfirmed());
+        this.confirmFleet.addActionListener(event -> this.requireObserver().onFleetConfirmed());
         controls.add(this.confirmFleet);
         controls.add(Box.createVerticalStrut(PLACEMENT_HINT_GAP));
         controls.add(new JLabel("Click the first cell of the selected ship."));
@@ -368,6 +399,9 @@ private static final int HANDOFF_BUTTON_TOP_MARGIN = 24;
         header.add(this.turnLabel);
         header.add(Box.createVerticalStrut(4));
         header.add(this.abilitiesLabel);
+        this.actionHint.setAlignmentX(CENTER_ALIGNMENT);
+        header.add(Box.createVerticalStrut(4));
+        header.add(this.actionHint);
         gamePanel.add(header, BorderLayout.NORTH);
 
         final JPanel ownPanel = this.wrapBoard(this.ownTitle, this.ownGrid);
@@ -401,12 +435,41 @@ private static final int HANDOFF_BUTTON_TOP_MARGIN = 24;
 
         this.actionMode.addActionListener(event -> {
             this.direction.setEnabled(this.actionMode.getSelectedItem() == ActionMode.SEQUENTIAL);
+            this.updateActionHint();
+
             if (this.observer != null) {
                 this.observer.onActionSelectionChanged();
             }
         });
         this.direction.setEnabled(false);
+        this.updateActionHint();
         return gamePanel;
+    }
+
+    /**
+     * Updates the instruction associated with the selected action.
+     */
+    private void updateActionHint() {
+        final ActionMode selected =
+                (ActionMode) this.actionMode.getSelectedItem();
+
+        if (selected == null) {
+            this.actionHint.setText("Select an action.");
+            return;
+        }
+
+        final String text = switch (selected) {
+            case NORMAL ->
+                "Select one opponent cell. A hit keeps the turn.";
+            case DOUBLE ->
+                "Select two different cells after three normal hits.";
+            case SEQUENTIAL ->
+                "Choose a direction, then select the first of three cells.";
+            case SONAR ->
+               "Select the center of a 3×3 scan; sonar ends the turn.";
+        };
+
+        this.actionHint.setText(text);
     }
 
     private JPanel buildPrivacyPanel() {
@@ -483,6 +546,7 @@ private static final int HANDOFF_BUTTON_TOP_MARGIN = 24;
             for (int column = 0; column < BOARD_SIZE; column++) {
                 final Coordinate coordinate = new Coordinate(row, column);
                 final JButton cell = BoardCells.create(
+                        coordinate,
                         snapshot.stateAt(coordinate),
                         snapshot.shipTypeAt(coordinate).orElse(null));
                 cell.addActionListener(event -> this.placeSelectedShip(coordinate));
@@ -494,21 +558,30 @@ private static final int HANDOFF_BUTTON_TOP_MARGIN = 24;
     }
 
     /**
-     * Updates the ship selector using the active fleet rules.
+     * Updates the placement controls.
      *
-     * @param rules active fleet rules
+     * @param state current placement state
      */
-    private void configurePlacementShips(final FleetRules rules) {
+    private void configurePlacementShips(final PlacementViewState state) {
         this.placementShip.removeAllItems();
+        int placedTotal = 0;
 
         for (final ShipType type : ShipType.values()) {
-            final int quantity = rules.quantity(type);
+            final int required = state.rules().quantity(type);
+            final int placed = state.placedShips().getOrDefault(type, 0);
+            final int remaining = required - placed;
+            placedTotal += placed;
 
-            if (quantity > 0) {
-                this.placementShip.addItem(
-                        new PlacementOption(type, quantity));
+            if (remaining > 0) {
+                this.placementShip.addItem(new PlacementOption(type, remaining));
             }
         }
+
+        final int total = state.rules().totalShips();
+        this.placementProgress.setText("Fleet progress: " + placedTotal + "/" + total);
+        this.placementShip.setEnabled(!state.complete());
+        this.placementRotation.setEnabled(!state.complete());
+        this.resetFleet.setEnabled(placedTotal > 0);
     }
 
     private void placeSelectedShip(final Coordinate origin) {
@@ -537,6 +610,7 @@ private static final int HANDOFF_BUTTON_TOP_MARGIN = 24;
             for (int column = 0; column < BOARD_SIZE; column++) {
                 final Coordinate coordinate = new Coordinate(row, column);
                 final JButton cell = BoardCells.create(
+                        coordinate,
                         snapshot.stateAt(coordinate),
                         snapshot.shipTypeAt(coordinate).orElse(null));
                 if (interactive && phase == GamePhase.IN_PROGRESS) {
@@ -701,14 +775,13 @@ private static final int HANDOFF_BUTTON_TOP_MARGIN = 24;
     /**
      * One ship type displayed in the placement selector.
      *
-     * @param type     ship type
-     * @param quantity required quantity
+     * @param type ship type
+     * @param remaining remaining quantity
      */
-    private record PlacementOption(ShipType type, int quantity) {
+    private record PlacementOption(ShipType type, int remaining) {
         private PlacementOption {
             Objects.requireNonNull(type, "type");
-
-            if (quantity <= 0) {
+            if (remaining <= 0) {
                 throw new IllegalArgumentException(
                         "Quantity must be positive");
             }
@@ -716,19 +789,7 @@ private static final int HANDOFF_BUTTON_TOP_MARGIN = 24;
 
         @Override
         public String toString() {
-            return label(this.type) + " (" + this.quantity + ")";
-        }
-
-        private static String label(final ShipType type) {
-            return switch (type) {
-                case FLAGSHIP -> "Flagship";
-                case BATTLESHIP -> "Battleship";
-                case CRUISER -> "Cruiser";
-                case INVISIBLE_SUBMARINE -> "Invisible submarine";
-                case DESTROYER -> "Destroyer";
-                case RECON -> "Recon ship";
-                case ARMORED_SHIP -> "Armored ship";
-            };
+            return SwingText.shipType(this.type) + " - " + this.remaining + " remaining";
         }
     }
 }
