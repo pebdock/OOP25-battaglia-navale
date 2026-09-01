@@ -428,7 +428,7 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
         controls.add(new JScrollPane(this.logArea), BorderLayout.CENTER);
         controls.add(new JLabel(
                 "<html>Owner's fleet: A Flagship · B Battleship · C Cruiser · S Submarine · "
-                        + "D Destroyer · R Recon · X Armored<br>✕ hit · • miss · sunk · "
+                        + "D Destroyer · R Recon · X Armored<br>✕ hit · • miss · O sunk · "
                         + "Shield: first hit absorbed</html>",
                 JLabel.CENTER), BorderLayout.SOUTH);
         gamePanel.add(controls, BorderLayout.SOUTH);
