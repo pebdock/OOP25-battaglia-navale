@@ -67,6 +67,8 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
     private static final int PLACEMENT_SECTION_GAP = 10;
     private static final int PLACEMENT_CONFIRM_GAP = 14;
     private static final int PLACEMENT_HINT_GAP = 12;
+    private static final int HANDOFF_PADDING = 12;
+private static final int HANDOFF_BUTTON_TOP_MARGIN = 24;
     private static final int START_BUTTON_TOP_MARGIN = 22;
     private static final float MAIN_TITLE_FONT_SIZE = 32F;
     private static final float TURN_FONT_SIZE = 18F;
@@ -93,6 +95,8 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
     private final JLabel ownTitle = new JLabel("Your field", JLabel.CENTER);
     private final JLabel opponentTitle = new JLabel("Opponent's field", JLabel.CENTER);
     private final JLabel privacyLabel = new JLabel("Pass the turn", JLabel.CENTER);
+    private final JLabel privacyInstruction = new JLabel(" ", JLabel.CENTER);
+    private final JButton confirmHandoff = new JButton("Continue");
     private final JTextArea logArea = new JTextArea(8, 70);
     private final JComboBox<ActionMode> actionMode = new JComboBox<>(ActionMode.values());
     private final JComboBox<ShotDirection> direction = new JComboBox<>(ShotDirection.values());
@@ -159,8 +163,33 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
     }
 
     @Override
-    public void showPrivacy(final String message) {
-        this.privacyLabel.setText(message);
+    public void showPrivacy(final HandoffViewState state) {
+        Objects.requireNonNull(state, "state");
+
+        this.privacyLabel.setText(
+            "Pass the device to " + state.recipientHarbor()
+        );
+
+        this.privacyInstruction.setText(
+            switch (state.reason()) {
+                case PLACEMENT ->
+                    "The next player may now place their fleet.";
+                case GAME_START ->
+                    "The first player may now reveal the battle screen.";
+                case TURN_CHANGE ->
+                    "The next player may now reveal their boards.";
+            }
+        );
+
+        this.confirmHandoff.setText(
+            "I am " + state.recipientHarbor() + " — Continue"
+        );
+
+        this.confirmHandoff.getAccessibleContext()
+            .setAccessibleDescription(
+                "Reveal the next private game screen"
+            );
+
         this.cards.show(this.root, PRIVACY_CARD);
     }
 
@@ -382,9 +411,45 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
 
     private JPanel buildPrivacyPanel() {
         final JPanel panel = new JPanel(new GridBagLayout());
-        this.privacyLabel.setFont(this.privacyLabel.getFont().deriveFont(Font.BOLD, PRIVACY_FONT_SIZE));
+        final GridBagConstraints constraints =
+            new GridBagConstraints();
+
+        constraints.gridx = 0;
+        constraints.gridy = 0;
+        constraints.insets = new Insets(
+            HANDOFF_PADDING,
+            HANDOFF_PADDING,
+            HANDOFF_PADDING,
+            HANDOFF_PADDING
+        );
+        constraints.fill = GridBagConstraints.HORIZONTAL;
+
+        this.privacyLabel.setFont(
+            this.privacyLabel.getFont().deriveFont(
+                Font.BOLD,
+                PRIVACY_FONT_SIZE
+            )
+        );
         this.privacyLabel.setForeground(NAVY);
-        panel.add(this.privacyLabel);
+        panel.add(this.privacyLabel, constraints);
+
+        constraints.gridy = 1;
+        this.privacyInstruction.setForeground(NAVY);
+        panel.add(this.privacyInstruction, constraints);
+
+        constraints.gridy = 2;
+        constraints.insets = new Insets(
+            HANDOFF_BUTTON_TOP_MARGIN,
+            HANDOFF_PADDING,
+            HANDOFF_PADDING,
+            HANDOFF_PADDING
+        );
+
+        this.confirmHandoff.addActionListener(event ->
+            this.requireObserver().onHandoffConfirmed()
+        );
+        panel.add(this.confirmHandoff, constraints);
+
         return panel;
     }
 
@@ -580,6 +645,13 @@ public final class BattleshipFrame extends JFrame implements BattleshipView {
             final Map<PlayerId, String> harborNames) {
         this.appendLogLine(
                 SwingText.randomEvent(result, harborNames));
+    }
+
+    private BattleshipViewObserver requireObserver() {
+        return Objects.requireNonNull(
+            this.observer,
+            "View observer has not been configured"
+        );
     }
 
     /**

@@ -36,11 +36,11 @@ public interface BattleshipView {
     void showPlacement(PlacementViewState state);
 
     /**
-     * Shows the privacy card used when passing the device.
+     * Hides both boards while the device changes hands.
      *
-     * @param message text displayed on the card
+     * @param state immutable handoff presentation state
      */
-    void showPrivacy(String message);
+    void showPrivacy(HandoffViewState state);
 
     /**
      * Shows the battle screen for the current player.

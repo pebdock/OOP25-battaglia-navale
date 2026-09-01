@@ -83,6 +83,11 @@ public interface BattleshipViewObserver {
     void onActionSelectionChanged();
 
     /**
+     * Confirms that the device has reached the intended player.
+     */
+    void onHandoffConfirmed();
+
+    /**
      * Requests a return to the setup screen.
      */
     void onNewGameRequested();

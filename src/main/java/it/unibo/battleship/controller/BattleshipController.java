@@ -28,6 +28,8 @@ import it.unibo.battleship.view.GameViewState;
 import it.unibo.battleship.view.PlacementFeedback;
 import it.unibo.battleship.view.PlacementViewState;
 import it.unibo.battleship.view.ShotDirection;
+import it.unibo.battleship.view.HandoffReason;
+import it.unibo.battleship.view.HandoffViewState;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -64,6 +66,7 @@ public final class BattleshipController
 
     private Game game;
     private PlayerId placingPlayer = PlayerId.PLAYER1;
+    private Optional<HandoffReason> pendingHandoff = Optional.empty();
 
     /**
      * Coordinates one view and the game model using injected collaborators.
@@ -194,14 +197,15 @@ public final class BattleshipController
         }
 
         if (this.placingPlayer == PlayerId.PLAYER1) {
-            final String nextHarbor =
-                this.harborNames.get(PlayerId.PLAYER2);
-
-            this.view.showPrivacy(nextHarbor);
-            this.beginPlacement(
-                PlayerId.PLAYER2,
-                PlacementFeedback.INITIAL
+            this.pendingHandoff = Optional.of(
+                HandoffReason.PLACEMENT
             );
+
+            this.view.stopRandomEventTimer();
+            this.view.showPrivacy(new HandoffViewState(
+                this.harborNames.get(PlayerId.PLAYER2),
+                HandoffReason.PLACEMENT
+            ));
             return;
         }
 
@@ -257,6 +261,37 @@ public final class BattleshipController
     }
 
     @Override
+    public void onHandoffConfirmed() {
+        if (this.pendingHandoff.isEmpty()) {
+            return;
+        }
+
+        final HandoffReason reason =
+            this.pendingHandoff.orElseThrow();
+
+        this.pendingHandoff = Optional.empty();
+
+        switch (reason) {
+            case PLACEMENT ->
+                this.beginPlacement(
+                    PlayerId.PLAYER2,
+                    PlacementFeedback.INITIAL
+                );
+
+            case GAME_START, TURN_CHANGE -> {
+                if (this.game == null) {
+                    throw new IllegalStateException(
+                        "Cannot resume a missing game"
+                    );
+                }
+
+                this.view.startRandomEventTimer();
+                this.refreshGame();
+            }
+        }
+    }
+
+    @Override
     public void onNewGameRequested() {
         this.resetSession();
         this.view.showSetup();
@@ -264,7 +299,9 @@ public final class BattleshipController
 
     @Override
     public void onRandomEventElapsed() {
-        if (!this.isGameRunning()) {
+        if (!this.isGameRunning()
+            || this.pendingHandoff.isPresent()
+            || !this.pendingTargets.isEmpty()) {
             return;
         }
 
@@ -319,8 +356,8 @@ public final class BattleshipController
     }
 
     private void startGame(
-            final Board firstBoard,
-            final Board secondBoard) {
+        final Board firstBoard,
+        final Board secondBoard) {
         this.view.stopRandomEventTimer();
 
         this.game = this.gameFactory.create(
@@ -331,14 +368,20 @@ public final class BattleshipController
 
         this.pendingTargets.clear();
         this.view.clearLog();
-
         this.game.start();
 
         this.view.appendGameStarted(
             this.harborNames.get(PlayerId.PLAYER1)
         );
-        this.view.startRandomEventTimer();
-        this.refreshGame();
+
+        this.pendingHandoff = Optional.of(
+            HandoffReason.GAME_START
+        );
+
+        this.view.showPrivacy(new HandoffViewState(
+            this.harborNames.get(PlayerId.PLAYER1),
+            HandoffReason.GAME_START
+        ));
     }
 
     private void refreshGame() {
@@ -526,12 +569,20 @@ public final class BattleshipController
         }
     }
 
-    private void passTurn() {
+private void passTurn() {
         final String nextHarbor =
             this.harborNames.get(this.game.currentPlayer());
 
-        this.view.showPrivacy(nextHarbor);
-        this.refreshGame();
+        this.view.stopRandomEventTimer();
+
+        this.pendingHandoff = Optional.of(
+            HandoffReason.TURN_CHANGE
+        );
+
+        this.view.showPrivacy(new HandoffViewState(
+            nextHarbor,
+            HandoffReason.TURN_CHANGE
+        ));
     }
 
     private boolean isInsideBoard(
@@ -589,6 +640,7 @@ public final class BattleshipController
     private void resetSession() {
         this.view.stopRandomEventTimer();
         this.game = null;
+        this.pendingHandoff = Optional.empty();
         this.placingPlayer = PlayerId.PLAYER1;
         this.pendingTargets.clear();
         this.harborNames.clear();
